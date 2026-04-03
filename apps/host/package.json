@@ -102,5 +102,10 @@
       }
     }
   },
-  "dependencies": {}
+  "dependencies": {
+    "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.1"
+  }
 }

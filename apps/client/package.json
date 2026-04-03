@@ -13,7 +13,8 @@
   "dependencies": {
     "@modern-js/runtime": "3.1.2",
     "react": "^19.2.3",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "peerjs": "^1.5.4"
   },
   "devDependencies": {
     "@modern-js/app-tools": "3.1.2",
