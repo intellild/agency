@@ -37,7 +37,8 @@
         "targetName": "test"
       },
       "exclude": [
-        "apps/agency-e2e/**/*"
+        "apps/agency-e2e/**/*",
+        "apps/host-e2e/**/*"
       ]
     },
     {
