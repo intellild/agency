@@ -1,5 +1,5 @@
 {
-  "name": "@agency/agency-e2e",
+  "name": "@agency/server-e2e",
   "version": "0.0.1",
   "private": true,
   "nx": {
@@ -17,8 +17,8 @@
           "passWithNoTests": true
         },
         "dependsOn": [
-          "@agency/agency:build",
-          "@agency/agency:serve"
+          "@agency/server:build",
+          "@agency/server:serve"
         ]
       }
     }

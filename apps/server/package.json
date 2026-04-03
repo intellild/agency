@@ -1,21 +1,27 @@
 {
-  "name": "@agency/agency",
+  "name": "@agency/server",
   "version": "0.0.1",
   "private": true,
   "nx": {
     "targets": {
       "build": {
         "executor": "@nx/esbuild:esbuild",
-        "outputs": ["{options.outputPath}"],
+        "outputs": [
+          "{options.outputPath}"
+        ],
         "defaultConfiguration": "production",
         "options": {
           "platform": "node",
-          "outputPath": "apps/agency/dist",
-          "format": ["cjs"],
+          "outputPath": "apps/server/dist",
+          "format": [
+            "cjs"
+          ],
           "bundle": false,
-          "main": "apps/agency/src/main.ts",
-          "tsConfig": "apps/agency/tsconfig.app.json",
-          "assets": ["apps/agency/src/assets"],
+          "main": "apps/server/src/main.ts",
+          "tsConfig": "apps/server/tsconfig.app.json",
+          "assets": [
+            "apps/server/src/assets"
+          ],
           "esbuildOptions": {
             "sourcemap": true,
             "outExtension": {
@@ -37,45 +43,56 @@
         }
       },
       "prune-lockfile": {
-        "dependsOn": ["build"],
+        "dependsOn": [
+          "build"
+        ],
         "cache": true,
         "executor": "@nx/js:prune-lockfile",
         "outputs": [
-          "{workspaceRoot}/apps/agency/dist/package.json",
-          "{workspaceRoot}/apps/agency/dist/pnpm-lock.yaml"
+          "{workspaceRoot}/apps/server/dist/package.json",
+          "{workspaceRoot}/apps/server/dist/pnpm-lock.yaml"
         ],
         "options": {
           "buildTarget": "build"
         }
       },
       "copy-workspace-modules": {
-        "dependsOn": ["build"],
+        "dependsOn": [
+          "build"
+        ],
         "cache": true,
-        "outputs": ["{workspaceRoot}/apps/agency/dist/workspace_modules"],
+        "outputs": [
+          "{workspaceRoot}/apps/server/dist/workspace_modules"
+        ],
         "executor": "@nx/js:copy-workspace-modules",
         "options": {
           "buildTarget": "build"
         }
       },
       "prune": {
-        "dependsOn": ["prune-lockfile", "copy-workspace-modules"],
+        "dependsOn": [
+          "prune-lockfile",
+          "copy-workspace-modules"
+        ],
         "executor": "nx:noop"
       },
       "serve": {
         "continuous": true,
         "executor": "@nx/js:node",
         "defaultConfiguration": "development",
-        "dependsOn": ["build"],
+        "dependsOn": [
+          "build"
+        ],
         "options": {
-          "buildTarget": "@agency/agency:build",
+          "buildTarget": "@agency/server:build",
           "runBuildTargetDependencies": false
         },
         "configurations": {
           "development": {
-            "buildTarget": "@agency/agency:build:development"
+            "buildTarget": "@agency/server:build:development"
           },
           "production": {
-            "buildTarget": "@agency/agency:build:production"
+            "buildTarget": "@agency/server:build:production"
           }
         }
       },
@@ -85,7 +102,10 @@
         }
       },
       "docker:build": {
-        "dependsOn": ["build", "prune"]
+        "dependsOn": [
+          "build",
+          "prune"
+        ]
       }
     }
   },
