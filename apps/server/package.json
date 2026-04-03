@@ -4,44 +4,6 @@
   "private": true,
   "nx": {
     "targets": {
-      "build": {
-        "executor": "@nx/esbuild:esbuild",
-        "outputs": [
-          "{options.outputPath}"
-        ],
-        "defaultConfiguration": "production",
-        "options": {
-          "platform": "node",
-          "outputPath": "apps/server/dist",
-          "format": [
-            "cjs"
-          ],
-          "bundle": false,
-          "main": "apps/server/src/main.ts",
-          "tsConfig": "apps/server/tsconfig.app.json",
-          "assets": [
-            "apps/server/src/assets"
-          ],
-          "esbuildOptions": {
-            "sourcemap": true,
-            "outExtension": {
-              ".js": ".js"
-            }
-          }
-        },
-        "configurations": {
-          "development": {},
-          "production": {
-            "generateLockfile": true,
-            "esbuildOptions": {
-              "sourcemap": false,
-              "outExtension": {
-                ".js": ".js"
-              }
-            }
-          }
-        }
-      },
       "prune-lockfile": {
         "dependsOn": [
           "build"
@@ -95,26 +57,11 @@
             "buildTarget": "@agency/server:build:production"
           }
         }
-      },
-      "test": {
-        "options": {
-          "passWithNoTests": true
-        }
-      },
-      "docker:build": {
-        "dependsOn": [
-          "build",
-          "prune"
-        ]
       }
     }
   },
   "dependencies": {
-    "express": "^4.22.1",
-    "fastify": "~5.2.1",
-    "fastify-plugin": "~5.0.1",
-    "@fastify/autoload": "~6.0.3",
-    "@fastify/sensible": "~6.0.2",
+    "express": "^4.21.2",
     "peer": "^1.0.2"
   }
 }

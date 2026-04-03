@@ -4,12 +4,6 @@
   "files": [],
   "references": [
     {
-      "path": "./apps/agency-e2e"
-    },
-    {
-      "path": "./apps/agency"
-    },
-    {
       "path": "./apps/host-e2e"
     },
     {
@@ -17,6 +11,9 @@
     },
     {
       "path": "./libs/common"
+    },
+    {
+      "path": "./apps/server"
     }
   ]
 }

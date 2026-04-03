@@ -1,13 +1,19 @@
+'use client';
+
 import { Helmet } from '@modern-js/runtime/head';
-import type { FunctionComponent, PropsWithChildren } from 'react';
-import './index.css';
+import { Dashboard } from '@/components/dashboard';
+import { ServerConfigForm } from '@/components/server-config-form';
+import { useIsConfigured } from '@/stores/connection';
 
-const Index: FunctionComponent<PropsWithChildren> = ({ children }) => {
+export default function Index() {
+  const [isConfigured] = useIsConfigured();
+
   return (
-    <div>
-      <Helmet>{children}</Helmet>
-    </div>
+    <>
+      <Helmet>
+        <title>Agency</title>
+      </Helmet>
+      {isConfigured ? <Dashboard /> : <ServerConfigForm />}
+    </>
   );
-};
-
-export default Index;
+}

@@ -10,6 +10,7 @@
     "@fastify/middie": "^9.3.1",
     "@fastify/sensible": "~6.0.2",
     "@nx/rsbuild": "^22.6.4",
+    "express": "^4.21.2",
     "fastify": "~5.2.1",
     "fastify-plugin": "~5.0.1",
     "peerjs": "^1.5.4",
@@ -19,11 +20,15 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.10",
     "@nx/docker": "22.6.4",
-    "@nx/esbuild": "22.6.4",
     "@nx/jest": "22.6.4",
     "@nx/js": "22.6.4",
     "@nx/node": "22.6.4",
+    "@nx/web": "22.6.4",
+    "@nx/webpack": "^22.6.4",
     "@nx/workspace": "22.6.4",
+    "@pmmmwh/react-refresh-webpack-plugin": "^0.5.7",
+    "@rsbuild/core": "1.1.10",
+    "@svgr/webpack": "^8.0.1",
     "@swc-node/register": "~1.11.1",
     "@swc/core": "~1.15.5",
     "@swc/helpers": "~0.5.18",
@@ -32,14 +37,15 @@
     "@types/jest": "^30.0.0",
     "@types/node": "20.19.9",
     "@types/ws": "^8.18.1",
-    "esbuild": "^0.19.2",
     "jest": "^30.0.2",
     "jest-environment-node": "^30.0.2",
     "jest-util": "^30.0.2",
     "nx": "22.6.4",
+    "react-refresh": "^0.10.0",
     "ts-jest": "^29.4.0",
     "ts-node": "10.9.1",
     "tslib": "^2.3.0",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "webpack-cli": "^5.1.4"
   }
 }
