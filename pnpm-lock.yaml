@@ -35,6 +35,9 @@ importers:
       type-fest:
         specifier: ^5.5.0
         version: 5.5.0
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
     devDependencies:
       '@biomejs/biome':
         specifier: 2.4.10
@@ -222,6 +225,29 @@ importers:
         version: 8.18.1
 
   apps/host-e2e: {}
+
+  apps/server:
+    dependencies:
+      '@fastify/autoload':
+        specifier: ~6.0.3
+        version: 6.0.3
+      '@fastify/sensible':
+        specifier: ~6.0.2
+        version: 6.0.4
+      express:
+        specifier: ^4.22.1
+        version: 4.22.1
+      fastify:
+        specifier: ~5.2.1
+        version: 5.2.2
+      fastify-plugin:
+        specifier: ~5.0.1
+        version: 5.0.1
+      peer:
+        specifier: ^1.0.2
+        version: 1.0.2
+
+  apps/server-e2e: {}
 
   libs/common: {}
 

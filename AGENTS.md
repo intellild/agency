@@ -77,6 +77,8 @@ WebRTC 基础设施服务器：
 Web GUI 前端应用：
 - **框架**: Modern.js 3.x + React 19
 - **UI 组件**: shadcn/ui 组件库，位于 `src/components/ui/`
+- **表单处理**: React Hook Form + Zod (用于表单验证)
+- **表单组件**: shadcn/ui Field 组件 (Form, FormField, FormItem, FormLabel, FormControl, FormMessage)
 - **通信方式**: 通过 WebRTC 与 host 建立 P2P 连接
 - **多 host 管理**: 可以同时连接和管理多个 host 实例
 
