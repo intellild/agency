@@ -1,16 +1,11 @@
-import { PeerJSNativeClient } from './peerjs-native-client';
+import Peer from 'peerjs';
 
-const client = new PeerJSNativeClient({
+const peer = new Peer({
   host: 'localhost',
   port: 3000,
   path: '/peerjs',
 });
 
-client
-  .connect()
-  .then((id) => {
-    console.log(`Host connected to PeerJS server with ID: ${id}`);
-  })
-  .catch((err) => {
-    console.error('PeerJS connection error:', err.message);
-  });
+peer.on('open', id => {
+  // setPeerId(id);
+});

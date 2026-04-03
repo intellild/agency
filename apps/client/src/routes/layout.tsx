@@ -1,9 +1,12 @@
 import { Outlet } from '@modern-js/runtime/router';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 export default function Layout() {
   return (
-    <div>
-      <Outlet />
-    </div>
+    <TooltipProvider>
+      <div>
+        <Outlet />
+      </div>
+    </TooltipProvider>
   );
 }
