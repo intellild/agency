@@ -60,5 +60,8 @@
       }
     }
   },
-  "dependencies": {}
+  "dependencies": {
+    "peerjs": "^1.5.5",
+    "webrtc-polyfill": "^1.2.0"
+  }
 }
