@@ -4,9 +4,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 export default function Layout() {
   return (
     <TooltipProvider>
-      <div>
-        <Outlet />
-      </div>
+      <Outlet />
     </TooltipProvider>
   );
 }
