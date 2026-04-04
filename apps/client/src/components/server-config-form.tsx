@@ -18,12 +18,17 @@ import {
   FieldTitle,
 } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { useServerConfig } from '@/stores/connection';
+import { useServerConfig, type ServerConfig } from '@/stores/connection';
 
-export function ServerConfigForm() {
+interface ServerConfigFormProps {
+  initialConfig?: ServerConfig | null;
+  onCancel?: () => void;
+}
+
+export function ServerConfigForm({ initialConfig, onCancel }: ServerConfigFormProps) {
   const [, setConfig] = useServerConfig();
-  const [address, setAddress] = useState('http://localhost:3000');
-  const [publicKey, setPublicKey] = useState('');
+  const [address, setAddress] = useState(initialConfig?.address ?? 'http://localhost:3000');
+  const [publicKey, setPublicKey] = useState(initialConfig?.publicKey ?? '');
 
   const handleSubmit = (e: SubmitEvent) => {
     e.preventDefault();
@@ -71,9 +76,14 @@ export function ServerConfigForm() {
                   required
                 />
               </Field>
-              <Button type="submit" className="mt-2">
-                保存配置
-              </Button>
+              <div className="flex gap-2 mt-2">
+                <Button type="submit">保存配置</Button>
+                {onCancel && (
+                  <Button type="button" variant="outline" onClick={onCancel}>
+                    取消
+                  </Button>
+                )}
+              </div>
             </FieldGroup>
           </form>
         </CardContent>

@@ -6,25 +6,20 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { useServerConfig } from '@/stores/connection';
 
-export function Dashboard() {
-  const [config, setConfig] = useServerConfig();
+interface DashboardProps {
+  onReconfigure: () => void;
+}
 
-  const handleReset = () => {
-    setConfig(null);
-  };
-
+export function Dashboard({ onReconfigure }: DashboardProps) {
   return (
     <div className="flex min-h-screen flex-col p-6">
       <header className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="font-bold text-2xl">Dashboard</h1>
-          <p className="text-muted-foreground text-sm">
-            已连接到: {config?.address}
-          </p>
+          <p className="text-muted-foreground text-sm">已连接到服务器</p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleReset}>
+        <Button variant="outline" size="sm" onClick={onReconfigure}>
           重新配置
         </Button>
       </header>
