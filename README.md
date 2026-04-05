@@ -6,6 +6,11 @@
 
 [Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/node?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
 
+## Development Rules
+
+- **Do not use `fastify-plugin`**: Avoid using `fastify-plugin` for plugin registration. Use standard Fastify plugin patterns instead.
+- **Do not use `@fastify/autoload`**: Avoid using `@fastify/autoload` for automatic route/plugin loading. Explicitly register routes and plugins for better clarity and control.
+
 ## Run tasks
 
 To run the dev server for your app, use:

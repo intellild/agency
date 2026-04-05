@@ -2,10 +2,7 @@
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "analytics": false,
   "namedInputs": {
-    "default": [
-      "{projectRoot}/**/*",
-      "sharedGlobals"
-    ],
+    "default": ["{projectRoot}/**/*", "sharedGlobals"],
     "production": [
       "default",
       "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
@@ -36,10 +33,7 @@
       "options": {
         "targetName": "test"
       },
-      "exclude": [
-        "apps/agency-e2e/**/*",
-        "apps/host-e2e/**/*"
-      ]
+      "exclude": ["apps/agency-e2e/**/*", "apps/host-e2e/**/*"]
     },
     {
       "plugin": "@nx/docker",
@@ -67,19 +61,15 @@
   "targetDefaults": {
     "@nx/esbuild:esbuild": {
       "cache": true,
-      "dependsOn": [
-        "^build"
-      ],
-      "inputs": [
-        "production",
-        "^production"
-      ]
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"]
     },
     "test": {
-      "dependsOn": [
-        "^build"
-      ]
+      "dependsOn": ["^build"]
     }
   },
-  "neverConnectToCloud": true
+  "neverConnectToCloud": true,
+  "tui": {
+    "enabled": false
+  }
 }

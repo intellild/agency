@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import { Helmet } from '@modern-js/runtime/head';
+import { useState } from 'react';
+import { AuthGuard } from '@/components/auth-guard';
 import { Dashboard } from '@/components/dashboard';
 import { ServerConfigForm } from '@/components/server-config-form';
 import { useIsConfigured, useServerConfig } from '@/stores/connection';

@@ -1,4 +1,5 @@
 import { appTools, defineConfig } from '@modern-js/app-tools';
+import Icons from 'unplugin-icons/rspack';
 
 // https://modernjs.dev/en/configure/app/usage
 export default defineConfig({
@@ -11,6 +12,9 @@ export default defineConfig({
           plugins: [['@swc-jotai/react-refresh', {}]],
         },
       },
+    },
+    rspack: {
+      plugins: [Icons({ compiler: 'jsx', jsx: 'react' })],
     },
   },
 });

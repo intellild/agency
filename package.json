@@ -7,12 +7,10 @@
   "packageManager": "pnpm@10.33.0",
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.18.0",
-    "@fastify/autoload": "~6.0.3",
     "@fastify/middie": "^9.3.1",
     "@fastify/sensible": "~6.0.2",
     "express": "^4.21.2",
     "fastify": "~5.2.1",
-    "fastify-plugin": "~5.0.1",
     "type-fest": "^5.5.0",
     "zod": "^4.3.6"
   },
@@ -44,7 +42,7 @@
     "ts-jest": "^29.4.0",
     "ts-node": "10.9.1",
     "tslib": "^2.3.0",
-    "typescript": "~5.9.2",
+    "typescript": "~5.9.3",
     "webpack-cli": "^5.1.4"
   }
 }

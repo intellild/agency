@@ -154,5 +154,6 @@ npx nx graph                 # 可视化项目依赖图
 2. **最小化变更**: 遵循最小化原则，只做必要的修改
 3. **pnpm workspace**: 前端应用在 `apps/*` 目录下有自己的 package.json
 4. **Never connect to Nx Cloud**: `neverConnectToCloud: true` 已设置
+5. **Node.js 内置模块导入**: Node.js 内置模块（如 `fs`, `path`, `crypto` 等）必须使用 `node:` 前缀导入，例如 `import fs from 'node:fs'`
 
 <!-- project description end-->
