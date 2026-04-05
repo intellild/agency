@@ -15,25 +15,25 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import type { Auth } from '@/hooks/auth';
-import { useAuth, useAuthState, useServerAddress } from '@/hooks/auth';
+import { useAuth, useServerAddress, useSessionState } from '@/hooks/auth';
 
 export default function OAuthCallbackPage() {
   const navigate = useNavigate();
 
   const [serverAddress] = useServerAddress();
-  const [authState, setAuthState] = useAuthState();
+  const [sessionState, setSessionState] = useSessionState();
   const code = useSearchParam('code');
   const state = useSearchParam('state');
 
-  const [auth, setAuth] = useAuth();
+  const [_auth, setAuth] = useAuth();
 
   const { mutate, isPending, isError, isSuccess, error } = useMutation({
     async mutationFn() {
       if (!code) {
         throw new Error('Invalid code');
       }
-      if (!state || state !== authState) {
-        throw new Error(`Invalid state ${state}, expected ${authState}`);
+      if (!state || state !== sessionState) {
+        throw new Error(`Invalid state ${state}, expected ${sessionState}`);
       }
       return await $fetch<Auth>('/auth/github/callback', {
         method: 'POST',
@@ -44,7 +44,7 @@ export default function OAuthCallbackPage() {
       });
     },
     onSuccess(data) {
-      setAuthState(undefined);
+      setSessionState(undefined);
       navigate('/');
       setAuth(data);
     },

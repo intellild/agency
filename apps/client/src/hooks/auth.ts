@@ -20,7 +20,7 @@ export function useServerAddress() {
   return useLocalStorage(SERVER_ADDRESS_KEY, DEFAULT_SERVER_ADDRESS);
 }
 
-export function useAuthState() {
+export function useSessionState() {
   return useSessionStorage<string | undefined>('auth-state');
 }
 

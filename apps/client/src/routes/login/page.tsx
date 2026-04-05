@@ -26,9 +26,9 @@ import { Input } from '@/components/ui/input';
 import {
   DEFAULT_SERVER_ADDRESS,
   useAuth,
-  useAuthState,
   useGithubClientId,
   useServerAddress,
+  useSessionState,
 } from '@/hooks/auth';
 import MdiGithub from '~icons/mdi/github';
 
@@ -41,7 +41,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [serverAddress, setServerAddress] = useServerAddress();
   const [githubClientId, setGithubClientId] = useGithubClientId();
-  const [_authState, setAuthState] = useAuthState();
+  const [_sessionState, setSessionState] = useSessionState();
   const [auth] = useAuth();
 
   if (auth) {
@@ -68,7 +68,7 @@ export default function LoginPage() {
     crypto.getRandomValues(bytes);
     // @ts-expect-error
     const state = bytes.toHex();
-    setAuthState(state);
+    setSessionState(state);
 
     window.location.href = withQuery(
       'https://github.com/login/oauth/authorize',
