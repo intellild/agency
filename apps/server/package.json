@@ -2,74 +2,17 @@
   "name": "@agency/server",
   "version": "0.0.1",
   "private": true,
-  "nx": {
-    "targets": {
-      "prune-lockfile": {
-        "dependsOn": [
-          "build"
-        ],
-        "cache": true,
-        "executor": "@nx/js:prune-lockfile",
-        "outputs": [
-          "{workspaceRoot}/apps/server/dist/package.json",
-          "{workspaceRoot}/apps/server/dist/pnpm-lock.yaml"
-        ],
-        "options": {
-          "buildTarget": "build"
-        }
-      },
-      "copy-workspace-modules": {
-        "dependsOn": [
-          "build"
-        ],
-        "cache": true,
-        "outputs": [
-          "{workspaceRoot}/apps/server/dist/workspace_modules"
-        ],
-        "executor": "@nx/js:copy-workspace-modules",
-        "options": {
-          "buildTarget": "build"
-        }
-      },
-      "prune": {
-        "dependsOn": [
-          "prune-lockfile",
-          "copy-workspace-modules"
-        ],
-        "executor": "nx:noop"
-      },
-      "serve": {
-        "continuous": true,
-        "executor": "@nx/js:node",
-        "defaultConfiguration": "development",
-        "dependsOn": [
-          "build"
-        ],
-        "options": {
-          "buildTarget": "@agency/server:build",
-          "runBuildTargetDependencies": false
-        },
-        "configurations": {
-          "development": {
-            "buildTarget": "@agency/server:build:development"
-          },
-          "production": {
-            "buildTarget": "@agency/server:build:production"
-          }
-        }
-      }
-    }
+  "type": "module",
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0"
   },
   "dependencies": {
-    "@electric-sql/pglite": "^0.4.3",
-    "@fastify/cors": "^11.2.0",
-    "@fastify/env": "^6.0.0",
-    "@fastify/jwt": "^10.0.0",
-    "@fastify/sensible": "~6.0.2",
+    "@libp2p/identify": "^4.0.0",
+    "cors": "^2.8.5",
     "dotenv": "^17.4.0",
     "drizzle-orm": "^0.45.2",
-    "fastify": "~5.2.1",
-    "fastify-type-provider-zod": "^6.1.0",
+    "express": "^4.21.2",
     "jose": "^6.2.2",
     "octokit": "^5.0.5",
     "undici": "^8.0.2",

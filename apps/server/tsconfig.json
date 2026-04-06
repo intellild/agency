@@ -1,10 +1,16 @@
 {
   "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "out": "dist"
+  },
   "files": [],
   "include": [],
   "references": [
     {
       "path": "./tsconfig.app.json"
     }
-  ]
+  ],
+  "ts-node": {
+    "swc": true
+  }
 }
