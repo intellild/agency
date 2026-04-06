@@ -40,11 +40,13 @@
   "devDependencies": {
     "@modern-js/app-tools": "3.0.5",
     "@modern-js/tsconfig": "3.0.5",
+    "@swc-jotai/debug-label": "^0.5.0",
     "@swc-jotai/react-refresh": "^0.5.0",
     "@tailwindcss/postcss": "^4.2.2",
     "@types/node": "^20",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
+    "jotai-devtools": "^0.13.1",
     "tailwindcss": "^4.2.2",
     "unplugin-icons": "^23.0.1"
   }

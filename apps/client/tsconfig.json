@@ -6,6 +6,7 @@
     "baseUrl": "./",
     "types": ["unplugin-icons/types/react"],
     "lib": ["DOM", "ES2022"],
+    "module": "esnext",
     "paths": {
       "@/*": ["./src/*"],
       "@shared/*": ["./shared/*"]

@@ -14,8 +14,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import type { Auth } from '@/hooks/auth';
 import { useAuth, useServerAddress, useSessionState } from '@/hooks/auth';
+import type { Auth } from '@/stores/auth';
 
 export default function OAuthCallbackPage() {
   const navigate = useNavigate();

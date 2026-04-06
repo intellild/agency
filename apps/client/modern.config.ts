@@ -9,7 +9,10 @@ export default defineConfig({
       jsc: {
         externalHelpers: false,
         experimental: {
-          plugins: [['@swc-jotai/react-refresh', {}]],
+          plugins: [
+            ['@swc-jotai/react-refresh', {}],
+            ['@swc-jotai/debug-label', {}],
+          ],
         },
       },
     },

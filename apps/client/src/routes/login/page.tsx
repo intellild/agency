@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Helmet } from '@modern-js/runtime/head';
 import { useNavigate } from '@modern-js/runtime/router';
 import { Controller, useForm } from 'react-hook-form';
-import { useAudio } from 'react-use';
 import { resolveURL, withQuery } from 'ufo';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -24,7 +23,6 @@ import {
 } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
-  DEFAULT_SERVER_ADDRESS,
   useAuth,
   useGithubClientId,
   useServerAddress,
@@ -55,7 +53,7 @@ export default function LoginPage() {
   } = useForm({
     resolver: zodResolver(schema),
     defaultValues: {
-      serverAddress: serverAddress || DEFAULT_SERVER_ADDRESS,
+      serverAddress: serverAddress,
       githubClientId: githubClientId || '',
     },
   });
