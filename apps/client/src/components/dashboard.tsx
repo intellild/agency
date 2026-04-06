@@ -13,11 +13,7 @@ import {
 } from '@/components/ui/card';
 import { useAuth } from '@/hooks/auth';
 
-interface DashboardProps {
-  onReconfigure: () => void;
-}
-
-export function Dashboard({ onReconfigure }: DashboardProps) {
+export function Dashboard() {
   const navigate = useNavigate();
   const [_auth, setAuth] = useAuth();
 
@@ -48,9 +44,6 @@ export function Dashboard({ onReconfigure }: DashboardProps) {
           {/*    <span className="font-medium text-sm">{userInfo.username}</span>*/}
           {/*  </div>*/}
           {/*)}*/}
-          <Button variant="outline" size="sm" onClick={onReconfigure}>
-            重新配置
-          </Button>
           <Button variant="outline" size="sm" onClick={handleLogout}>
             <LogOut className="mr-2 h-4 w-4" />
             退出登录

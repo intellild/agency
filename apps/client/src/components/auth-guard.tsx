@@ -9,7 +9,7 @@ export function AuthGuard({ children }: PropsWithChildren) {
   const location = useLocation();
   const [state] = useAuth();
 
-  if (!!state && !['/login', '/oauth/callback'].includes(location.pathname)) {
+  if (!state && !['/login', '/oauth/callback'].includes(location.pathname)) {
     navigate('/login');
   }
 
