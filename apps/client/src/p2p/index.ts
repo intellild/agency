@@ -25,13 +25,10 @@ export {
   type P2PConnectionInfo,
   type P2PConnectionState,
   type P2PStatus,
-  // State atoms
-  p2pAutoConnectAtom,
-  // Effects
-  p2pAutoConnectEffect,
   p2pConfigAtom,
+  // Effects
+  p2pConnectionEffect,
   p2pConnectionStateAtom,
-  p2pInitEffect,
   p2pReconnectEffect,
   p2pStatusAtom,
   resetP2PAtom,

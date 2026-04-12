@@ -1,6 +1,5 @@
 import type { Connection } from '@libp2p/interface';
 import { atom } from 'jotai';
-import { atomWithStorage } from 'jotai/utils';
 import { atomEffect } from 'jotai-effect';
 import type { Libp2p } from 'libp2p';
 import { authAtom } from '@/stores/auth';
@@ -17,16 +16,8 @@ import {
 // ============================================
 
 // P2P configuration atom (derived from auth)
-export const p2pConfigAtom = atom<P2PConfig | null>(get => get(authAtom)?.p2p ?? null);
-
-// Whether to auto-connect on login
-export const p2pAutoConnectAtom = atomWithStorage<boolean>(
-  'p2p-auto-connect',
-  true,
-  undefined,
-  {
-    getOnInit: true,
-  },
+export const p2pConfigAtom = atom<P2PConfig | null>(
+  get => get(authAtom)?.p2p ?? null,
 );
 
 // ============================================
@@ -54,7 +45,6 @@ export interface P2PConnectionState {
   // Connection status
   state: ConnectionState;
   error: string | null;
-  enabled: boolean;
 
   // Connection info
   info: P2PConnectionInfo;
@@ -72,7 +62,6 @@ export interface P2PConnectionState {
 const initialConnectionState: P2PConnectionState = {
   state: 'idle',
   error: null,
-  enabled: false,
   info: {
     peerId: null,
     relayConnected: false,
@@ -112,8 +101,7 @@ export const p2pStatusAtom = atom<P2PStatus>(get => {
   const config = get(p2pConfigAtom);
   const auth = get(authAtom);
   const connectionState = get(p2pConnectionStateAtom);
-
-  const { state, error, enabled, info, reconnect } = connectionState;
+  const { state, error, info, reconnect } = connectionState;
 
   const isConnected = state === 'connected';
   const isConnecting =
@@ -130,11 +118,7 @@ export const p2pStatusAtom = atom<P2PStatus>(get => {
     hasError,
     errorMessage: error,
     canConnect:
-      enabled &&
-      !!config &&
-      !!auth?.accessToken &&
-      !isConnected &&
-      !isConnecting,
+      !!config && !!auth?.accessToken && !isConnected && !isConnecting,
     info,
     reconnect,
   };
@@ -381,18 +365,15 @@ export const resetP2PAtom = atom(null, (get, set) => {
 // P2P Effects
 // ============================================
 
-// Auto-connect effect - watches auth and config atoms
-export const p2pAutoConnectEffect = atomEffect((get, set) => {
+// P2P connection effect - watches auth and config atoms
+export const p2pConnectionEffect = atomEffect((get, set) => {
   const config = get(p2pConfigAtom);
   const auth = get(authAtom);
-  const autoConnect = get(p2pAutoConnectAtom);
   const connectionState = get(p2pConnectionStateAtom);
-  const { state, enabled } = connectionState;
+  const { state } = connectionState;
 
-  // Auto-connect when auth is present, config is valid, and autoConnect is enabled
+  // Auto-connect when auth is present and config is valid
   if (
-    enabled &&
-    autoConnect &&
     config &&
     auth?.accessToken &&
     state !== 'connected' &&
@@ -484,18 +465,5 @@ export const p2pReconnectEffect = atomEffect((get, set) => {
         isReconnecting: false,
       },
     }));
-  }
-});
-
-// Initialize effect - check browser support
-export const p2pInitEffect = atomEffect((get, set) => {
-  const connectionState = get(p2pConnectionStateAtom);
-  const supported = isLibp2pSupported();
-
-  if (connectionState.enabled !== supported) {
-    set(p2pConnectionStateAtom, {
-      ...connectionState,
-      enabled: supported,
-    });
   }
 });

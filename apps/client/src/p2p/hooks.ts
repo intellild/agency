@@ -1,15 +1,13 @@
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { useAtom, useAtomValue } from 'jotai';
 import { useCallback, useEffect } from 'react';
 import { store } from '@/stores/root';
-import { isLibp2pSupported } from './client';
+
 import {
   connectP2PAtom,
   disconnectP2PAtom,
-  p2pAutoConnectAtom,
-  p2pAutoConnectEffect,
   p2pConfigAtom,
+  p2pConnectionEffect,
   p2pConnectionStateAtom,
-  p2pInitEffect,
   p2pReconnectEffect,
   p2pStatusAtom,
   resetP2PAtom,
@@ -19,20 +17,10 @@ import {
 export function useP2P() {
   const status = useAtomValue(p2pStatusAtom);
   const config = useAtomValue(p2pConfigAtom);
-  const [autoConnect, setAutoConnect] = useAtom(p2pAutoConnectAtom);
-
-  const setConnectionState = useSetAtom(p2pConnectionStateAtom);
 
   // Subscribe to atom effects
-  useAtom(p2pAutoConnectEffect);
+  useAtom(p2pConnectionEffect);
   useAtom(p2pReconnectEffect);
-  useAtom(p2pInitEffect);
-
-  // Initialize P2P support check (fallback if effect doesn't run)
-  useEffect(() => {
-    const supported = isLibp2pSupported();
-    setConnectionState(prev => ({ ...prev, enabled: supported }));
-  }, [setConnectionState]);
 
   // Manual connect
   const connect = useCallback(async () => {
@@ -66,13 +54,11 @@ export function useP2P() {
     // State
     ...status,
     config,
-    autoConnect,
 
     // Actions
     connect,
     disconnect,
     reset,
-    setAutoConnect,
   };
 }
 

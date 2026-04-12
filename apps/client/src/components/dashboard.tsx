@@ -28,8 +28,6 @@ export function Dashboard() {
     info,
     connect,
     disconnect,
-    autoConnect,
-    setAutoConnect,
   } = useP2P();
 
   const handleLogout = async () => {
@@ -139,13 +137,6 @@ export function Dashboard() {
                     断开
                   </Button>
                 )}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setAutoConnect(!autoConnect)}
-                >
-                  {autoConnect ? '自动连接: 开' : '自动连接: 关'}
-                </Button>
               </div>
             </div>
           </CardContent>
