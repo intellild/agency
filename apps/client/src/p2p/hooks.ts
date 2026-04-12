@@ -19,8 +19,8 @@ export function useP2P() {
   const config = useAtomValue(p2pConfigAtom);
 
   // Subscribe to atom effects
-  useAtom(p2pConnectionEffect);
-  useAtom(p2pReconnectEffect);
+  // useAtom(p2pConnectionEffect);
+  // useAtom(p2pReconnectEffect);
 
   // Manual connect
   const connect = useCallback(async () => {

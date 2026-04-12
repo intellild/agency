@@ -11,7 +11,7 @@ import { importSPKI, jwtVerify } from 'jose';
 // Load public key for verification
 function loadPublicKey(): string {
   const env = process.env.ENV ?? 'development';
-  const keyPath = path.join(__dirname, '../keys', env, 'public.pem');
+  const keyPath = path.join(__dirname, '../../keys', env, 'public.pem');
   if (fs.existsSync(keyPath)) {
     return fs.readFileSync(keyPath, 'utf-8');
   }
@@ -25,7 +25,7 @@ export const authenticate: RequestHandler = async (req, res, next) => {
   try {
     // Get token from Authorization header
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader?.startsWith('Bearer ')) {
       res
         .status(401)
         .json({ error: 'Missing or invalid authorization header' });
@@ -58,6 +58,6 @@ export const authenticate: RequestHandler = async (req, res, next) => {
       res.status(401).json({ error: 'Token expired' });
       return;
     }
-    res.status(401).json({ error: 'Invalid token' });
+    res.status(401).json({ error: (err as Error)?.message || String(err) });
   }
 };

@@ -3,6 +3,7 @@ import * as dotenv from 'dotenv';
 import express from 'express';
 import { initP2PNode, stopP2PNode } from './p2p/index.js';
 import authRoutes from './routes/auth.js';
+import p2pRoutes from './routes/p2p.js';
 import protectedRoutes from './routes/protected.js';
 import rootRoutes from './routes/root.js';
 
@@ -20,7 +21,7 @@ app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) {
-        callback(new Error('Not allowed'), false);
+        callback(null, true);
         return;
       }
       const hostname = new URL(origin).hostname;
@@ -32,6 +33,8 @@ app.use(
       // Generate an error on other origins, disabling access
       callback(new Error('Not allowed'), false);
     },
+    credentials: true,
+    allowedHeaders: ['Authorization', 'Content-Type'],
   }),
 );
 
@@ -39,6 +42,7 @@ app.use(
 app.use('/', rootRoutes);
 app.use('/auth', authRoutes);
 app.use('/api', protectedRoutes);
+app.use('/api/p2p', p2pRoutes);
 
 // Error handling middleware
 app.use(

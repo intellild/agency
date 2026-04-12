@@ -1,6 +1,5 @@
 import { atomWithStorage } from 'jotai/utils';
 import { $fetch } from 'ofetch';
-import type { P2PConfig } from '@/p2p';
 import { store } from './root';
 
 export interface Auth {
@@ -9,7 +8,6 @@ export interface Auth {
   githubToken: string;
   userId: string;
   username: string;
-  p2p?: P2PConfig | null;
 }
 
 // Token 过期前预留的缓冲时间（5分钟）

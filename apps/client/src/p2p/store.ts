@@ -1,8 +1,9 @@
 import type { Connection } from '@libp2p/interface';
 import { atom } from 'jotai';
 import { atomEffect } from 'jotai-effect';
+import { atomWithQuery } from 'jotai-tanstack-query';
 import type { Libp2p } from 'libp2p';
-import { authAtom } from '@/stores/auth';
+import { authAtom, serverAddressAtom } from '@/stores/auth';
 import type { ConnectionState, P2PConfig } from './client';
 import {
   attemptWebRTCDirect,
@@ -15,10 +16,36 @@ import {
 // Configuration & Settings Atoms
 // ============================================
 
-// P2P configuration atom (derived from auth)
-export const p2pConfigAtom = atom<P2PConfig | null>(
-  get => get(authAtom)?.p2p ?? null,
-);
+// P2P config query atom - fetches from API using jotai-tanstack-query
+export const p2pConfigQueryAtom = atomWithQuery(get => {
+  const auth = get(authAtom);
+  const serverAddress = get(serverAddressAtom);
+  const isLoggedIn = !!auth?.accessToken;
+
+  return {
+    queryKey: ['p2p', 'config'],
+    queryFn: async (): Promise<P2PConfig> => {
+      const response = await fetch(`${serverAddress}/api/p2p/config`, {
+        headers: {
+          Authorization: `Bearer ${auth?.accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch P2P config');
+      }
+
+      return response.json();
+    },
+    enabled: isLoggedIn,
+  };
+});
+
+// P2P configuration atom (reads from query atom)
+export const p2pConfigAtom = atom<P2PConfig | null>(get => {
+  const queryResult = get(p2pConfigQueryAtom);
+  return queryResult.data ?? null;
+});
 
 // ============================================
 // P2P Instance Atoms (non-serializable objects)

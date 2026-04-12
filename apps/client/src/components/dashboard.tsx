@@ -1,8 +1,9 @@
 'use client';
 
 import { useNavigate } from '@modern-js/runtime/router';
-
+import { useSetAtom } from 'jotai';
 import { Loader2, LogOut, Wifi, WifiOff } from 'lucide-react';
+import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -11,12 +12,12 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { useAuth } from '@/hooks/auth';
 import { useP2P } from '@/p2p';
+import { authAtom } from '@/stores/auth';
 
 export function Dashboard() {
   const navigate = useNavigate();
-  const [_auth, setAuth] = useAuth();
+  const setAuth = useSetAtom(authAtom);
 
   // Use P2P hook for connection management
   const {
@@ -49,7 +50,7 @@ export function Dashboard() {
   };
 
   // Get connection status display
-  const getConnectionStatus = () => {
+  const status = useMemo(() => {
     if (isConnected) {
       return { icon: Wifi, color: 'text-green-500', text: '已连接' };
     }
@@ -68,9 +69,8 @@ export function Dashboard() {
       };
     }
     return { icon: WifiOff, color: 'text-gray-400', text: '未连接' };
-  };
+  }, [isConnected, isConnecting, hasError, errorMessage]);
 
-  const status = getConnectionStatus();
   const StatusIcon = status.icon;
 
   return (

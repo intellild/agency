@@ -10,7 +10,6 @@ import { Router } from 'express';
 import { importPKCS8, jwtVerify, SignJWT } from 'jose';
 import { App, Octokit } from 'octokit';
 import { ProxyAgent, fetch as undiciFetch } from 'undici';
-import { getICEServers, getP2PNodeInfo } from '../p2p/index.js';
 
 // Configuration from environment variables
 const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || '';
@@ -34,7 +33,7 @@ const myFetch: typeof undiciFetch = (url, options) => {
 // Load RSA keys
 function loadPrivateKey(): string {
   const env = process.env.ENV ?? 'development';
-  const keyPath = path.join(__dirname, '../keys', env, 'private.pem');
+  const keyPath = path.join(__dirname, '../../keys', env, 'private.pem');
   if (fs.existsSync(keyPath)) {
     return fs.readFileSync(keyPath, 'utf-8');
   }
@@ -115,23 +114,12 @@ router.post('/github/callback', async (req, res) => {
     const accessToken = await generateAccessToken(userId);
     const refreshToken = await generateRefreshToken(userId);
 
-    // Get P2P configuration if available
-    const p2pInfo = getP2PNodeInfo();
-    const p2pConfig = p2pInfo
-      ? {
-          serverPeerId: p2pInfo.peerId,
-          relayAddresses: p2pInfo.relayAddresses,
-          iceServers: getICEServers(),
-        }
-      : null;
-
     res.json({
       accessToken,
       refreshToken,
       githubToken: authentication.token,
       userId,
       username: githubUser.data.login,
-      p2p: p2pConfig,
     });
   } catch (err) {
     console.error(err);
