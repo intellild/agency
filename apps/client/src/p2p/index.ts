@@ -14,13 +14,14 @@ export {
   useP2PReady,
 } from './hooks';
 
-// Store atoms and types
+// Store atoms, accessors and types
 export {
   // Action atoms
   connectP2PAtom,
   disconnectP2PAtom,
-  // Instance atoms (non-serializable)
-  libp2pNodeAtom,
+  // Instance accessors (non-serializable)
+  getLibp2pNode,
+  getServerConnection,
   // Types
   type P2PConnectionInfo,
   type P2PConnectionState,
@@ -31,5 +32,6 @@ export {
   p2pConnectionStateAtom,
   p2pStatusAtom,
   resetP2PAtom,
-  serverConnectionAtom,
+  setLibp2pNode,
+  setServerConnection,
 } from './store';

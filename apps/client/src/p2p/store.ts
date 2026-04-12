@@ -13,6 +13,33 @@ import {
 } from './client';
 
 // ============================================
+// Module-Level Instance Storage (non-serializable objects)
+// ============================================
+
+// Libp2p node instance
+let libp2pNodeInstance: Libp2p | null = null;
+
+// Server connection instance
+let serverConnectionInstance: Connection | null = null;
+
+// Accessor functions
+export function getLibp2pNode(): Libp2p | null {
+  return libp2pNodeInstance;
+}
+
+export function setLibp2pNode(node: Libp2p | null): void {
+  libp2pNodeInstance = node;
+}
+
+export function getServerConnection(): Connection | null {
+  return serverConnectionInstance;
+}
+
+export function setServerConnection(conn: Connection | null): void {
+  serverConnectionInstance = conn;
+}
+
+// ============================================
 // Configuration & Settings Atoms
 // ============================================
 
@@ -46,16 +73,6 @@ export const p2pConfigAtom = atom<P2PConfig | null>(get => {
   const queryResult = get(p2pConfigQueryAtom);
   return queryResult.data ?? null;
 });
-
-// ============================================
-// P2P Instance Atoms (non-serializable objects)
-// ============================================
-
-// Libp2p node instance
-export const libp2pNodeAtom = atom<Libp2p | null>(null);
-
-// Server connection
-export const serverConnectionAtom = atom<Connection | null>(null);
 
 // ============================================
 // Connection State Atom (merged)
@@ -141,7 +158,7 @@ export const p2pStatusAtom = atom<P2PStatus>(get => {
 export const connectP2PAtom = atom(null, async (get, set): Promise<boolean> => {
   const config = get(p2pConfigAtom);
   const auth = get(authAtom);
-  const existingLibp2p = get(libp2pNodeAtom);
+  const existingLibp2p = getLibp2pNode();
   const connectionState = get(p2pConnectionStateAtom);
   const { state } = connectionState;
 
@@ -181,8 +198,8 @@ export const connectP2PAtom = atom(null, async (get, set): Promise<boolean> => {
     } catch {
       // ignore
     }
-    set(libp2pNodeAtom, null);
-    set(serverConnectionAtom, null);
+    setLibp2pNode(null);
+    setServerConnection(null);
   }
 
   // Update state to connecting
@@ -196,7 +213,7 @@ export const connectP2PAtom = atom(null, async (get, set): Promise<boolean> => {
     // Create and start libp2p node
     const libp2p = await createLibp2pNode(config);
     await libp2p.start();
-    set(libp2pNodeAtom, libp2p);
+    setLibp2pNode(libp2p);
 
     // Update state
     set(p2pConnectionStateAtom, prev => ({
@@ -212,7 +229,7 @@ export const connectP2PAtom = atom(null, async (get, set): Promise<boolean> => {
 
     // Dial server through relay
     const serverConnection = await dialServer(libp2p, config);
-    set(serverConnectionAtom, serverConnection);
+    setServerConnection(serverConnection);
 
     // Attempt WebRTC direct connection
     set(p2pConnectionStateAtom, prev => ({
@@ -227,7 +244,7 @@ export const connectP2PAtom = atom(null, async (get, set): Promise<boolean> => {
       );
       // Close relay connection if direct succeeds
       await serverConnection.close();
-      set(serverConnectionAtom, directConnection);
+      setServerConnection(directConnection);
       set(p2pConnectionStateAtom, prev => ({
         ...prev,
         state: 'connected',
@@ -262,7 +279,7 @@ export const connectP2PAtom = atom(null, async (get, set): Promise<boolean> => {
           directConnected: false,
         },
       }));
-      set(serverConnectionAtom, null);
+      setServerConnection(null);
     };
 
     libp2p.addEventListener('peer:disconnect', handleDisconnect);
@@ -285,9 +302,9 @@ export const connectP2PAtom = atom(null, async (get, set): Promise<boolean> => {
 });
 
 // Disconnect P2P action atom
-export const disconnectP2PAtom = atom(null, async (get, set) => {
-  const libp2p = get(libp2pNodeAtom);
-  const serverConnection = get(serverConnectionAtom);
+export const disconnectP2PAtom = atom(null, async (_get, set) => {
+  const libp2p = getLibp2pNode();
+  const serverConnection = getServerConnection();
 
   // Close server connection
   if (serverConnection) {
@@ -296,7 +313,7 @@ export const disconnectP2PAtom = atom(null, async (get, set) => {
     } catch {
       // ignore
     }
-    set(serverConnectionAtom, null);
+    setServerConnection(null);
   }
 
   // Stop libp2p node
@@ -306,7 +323,7 @@ export const disconnectP2PAtom = atom(null, async (get, set) => {
     } catch {
       // ignore
     }
-    set(libp2pNodeAtom, null);
+    setLibp2pNode(null);
   }
 
   set(p2pConnectionStateAtom, prev => ({
@@ -322,8 +339,8 @@ export const disconnectP2PAtom = atom(null, async (get, set) => {
 
 // Reset P2P action atom
 export const resetP2PAtom = atom(null, (_get, set) => {
-  set(libp2pNodeAtom, null);
-  set(serverConnectionAtom, null);
+  setLibp2pNode(null);
+  setServerConnection(null);
   set(p2pConnectionStateAtom, initialConnectionState);
 });
 
