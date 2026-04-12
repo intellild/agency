@@ -71,253 +71,51 @@ export function isLibp2pSupported(): boolean {
   return isWebRTCSupported() && hasWasm;
 }
 
-// P2P client class
-export class P2PClient {
-  private libp2p: Libp2p | null = null;
-  private config: P2PConfig | null = null;
-  private accessToken: string | null = null;
-  private serverConnection: Connection | null = null;
-  private state: ConnectionState = 'idle';
-  private stateListeners: ((state: ConnectionState, error?: string) => void)[] =
-    [];
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  private reconnectAttempts = 0;
-  private readonly maxReconnectAttempts = 5;
-  private readonly reconnectBaseDelay = 1000;
+// Create libp2p node with the given config
+export async function createLibp2pNode(config: P2PConfig): Promise<Libp2p> {
+  const libp2p = await createLibp2p({
+    transports: [
+      webRTC({
+        rtcConfiguration: {
+          iceServers: config.iceServers,
+        },
+      }),
+      webSockets(),
+      circuitRelayTransport(),
+    ],
+    connectionEncrypters: [noise()],
+    streamMuxers: [yamux()],
+  });
 
-  constructor() {
-    this.setState('idle');
-  }
-
-  // Initialize with config and token
-  initialize(config: P2PConfig, accessToken: string): void {
-    this.config = config;
-    this.accessToken = accessToken;
-  }
-
-  // Get current state
-  getState(): ConnectionState {
-    return this.state;
-  }
-
-  // Check if connected
-  isConnected(): boolean {
-    return this.state === 'connected' && this.serverConnection !== null;
-  }
-
-  // Subscribe to state changes
-  onStateChange(
-    listener: (state: ConnectionState, error?: string) => void,
-  ): () => void {
-    this.stateListeners.push(listener);
-    return () => {
-      const index = this.stateListeners.indexOf(listener);
-      if (index > -1) {
-        this.stateListeners.splice(index, 1);
-      }
-    };
-  }
-
-  // Set state and notify listeners
-  private setState(state: ConnectionState, error?: string): void {
-    this.state = state;
-    this.stateListeners.forEach(listener => listener(state, error));
-  }
-
-  // Connect to server via Circuit Relay and WebRTC
-  async connect(): Promise<boolean> {
-    if (!this.config || !this.accessToken) {
-      this.setState('error', 'P2P not initialized with config and token');
-      return false;
-    }
-
-    if (!isLibp2pSupported()) {
-      this.setState('error', 'Browser does not support required P2P features');
-      return false;
-    }
-
-    // Already connected
-    if (this.state === 'connected') {
-      return true;
-    }
-
-    // Connecting in progress
-    if (
-      this.state === 'relay-connecting' ||
-      this.state === 'webrtc-connecting'
-    ) {
-      return false;
-    }
-
-    try {
-      this.setState('relay-connecting');
-
-      // Create libp2p node
-      this.libp2p = await createLibp2p({
-        transports: [
-          webRTC({
-            rtcConfiguration: {
-              iceServers: this.config.iceServers,
-            },
-          }),
-          webSockets(),
-          circuitRelayTransport(),
-        ],
-        connectionEncrypters: [noise()],
-        streamMuxers: [yamux()],
-      });
-
-      // Start the node
-      await this.libp2p.start();
-
-      // Connect via Circuit Relay first
-      const relayAddr =
-        this.config.relayAddresses[0] ||
-        `/dns4/localhost/tcp/9091/ws/p2p/${this.config.serverPeerId}`;
-
-      const relayMultiaddr = multiaddr(relayAddr);
-
-      this.setState('relay-connected');
-      this.setState('signal-exchanging');
-
-      // Dial the server through relay
-      const serverPeerId = this.config.serverPeerId;
-      const relayedAddr = multiaddr(
-        `${relayAddr}/p2p-circuit/p2p/${serverPeerId}`,
-      );
-
-      this.serverConnection = await this.libp2p.dial(relayedAddr);
-
-      // Check if we can establish direct WebRTC connection
-      this.setState('webrtc-connecting');
-
-      // Attempt direct WebRTC connection
-      const webrtcAddr = multiaddr(
-        `/dns4/localhost/udp/9090/webrtc-direct/p2p/${serverPeerId}`,
-      );
-
-      try {
-        const directConnection = await this.libp2p.dial(webrtcAddr);
-
-        // Close relay connection if direct WebRTC succeeds
-        if (this.serverConnection) {
-          await this.serverConnection.close();
-        }
-        this.serverConnection = directConnection;
-      } catch (webrtcErr) {
-        // Keep relay connection as fallback
-        console.log('Direct WebRTC failed, using relay:', webrtcErr);
-      }
-
-      // Setup connection event handlers
-      this.setupConnectionHandlers();
-
-      this.reconnectAttempts = 0;
-      this.setState('connected');
-      return true;
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      this.setState('error', errorMsg);
-
-      // Schedule reconnect
-      this.scheduleReconnect();
-      return false;
-    }
-  }
-
-  // Setup connection event handlers
-  private setupConnectionHandlers(): void {
-    if (!this.libp2p) return;
-
-    this.libp2p.addEventListener('peer:disconnect', () => {
-      this.setState('disconnected');
-      this.serverConnection = null;
-      this.scheduleReconnect();
-    });
-  }
-
-  // Schedule reconnection with exponential backoff
-  private scheduleReconnect(): void {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-    }
-
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      this.setState('error', 'Max reconnection attempts reached');
-      return;
-    }
-
-    const delay = this.reconnectBaseDelay * 2 ** this.reconnectAttempts;
-    this.reconnectAttempts++;
-
-    this.reconnectTimer = setTimeout(() => {
-      this.connect();
-    }, delay);
-  }
-
-  // Disconnect and cleanup
-  async disconnect(): Promise<void> {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-
-    if (this.serverConnection) {
-      try {
-        await this.serverConnection.close();
-      } catch {
-        // ignore
-      }
-      this.serverConnection = null;
-    }
-
-    if (this.libp2p) {
-      await this.libp2p.stop();
-      this.libp2p = null;
-    }
-
-    this.setState('disconnected');
-  }
-
-  // Send data to server (placeholder for future protocol implementation)
-  async send(data: Uint8Array): Promise<void> {
-    if (!this.serverConnection || !this.isConnected()) {
-      throw new Error('Not connected to server');
-    }
-
-    // Protocol implementation will be added here
-    // For now, this is a placeholder
-    console.log('Send data:', data);
-  }
-
-  // Get connection info
-  getConnectionInfo(): {
-    peerId: string | null;
-    relayConnected: boolean;
-    directConnected: boolean;
-  } {
-    return {
-      peerId: this.libp2p?.peerId?.toString() ?? null,
-      relayConnected:
-        this.state === 'relay-connected' || this.state === 'signal-exchanging',
-      directConnected: this.state === 'connected',
-    };
-  }
+  return libp2p;
 }
 
-// Singleton instance
-let p2pClient: P2PClient | null = null;
+// Dial server through circuit relay
+export async function dialServer(
+  libp2p: Libp2p,
+  config: P2PConfig,
+): Promise<Connection> {
+  const relayAddr =
+    config.relayAddresses[0] ||
+    `/dns4/localhost/tcp/9091/ws/p2p/${config.serverPeerId}`;
 
-export function getP2PClient(): P2PClient {
-  if (!p2pClient) {
-    p2pClient = new P2PClient();
-  }
-  return p2pClient;
+  const serverPeerId = config.serverPeerId;
+  const relayedAddr = multiaddr(`${relayAddr}/p2p-circuit/p2p/${serverPeerId}`);
+
+  const connection = await libp2p.dial(relayedAddr);
+  return connection;
 }
 
-export function resetP2PClient(): void {
-  if (p2pClient) {
-    p2pClient.disconnect().catch(console.error);
-    p2pClient = null;
-  }
+// Attempt direct WebRTC connection
+export async function attemptWebRTCDirect(
+  libp2p: Libp2p,
+  serverPeerId: string,
+): Promise<Connection> {
+  const webrtcAddr = multiaddr(
+    `/dns4/localhost/udp/9090/webrtc-direct/p2p/${serverPeerId}`,
+  );
+
+  const connection = await libp2p.dial(webrtcAddr);
+  console.log('attemptWebRTCDirect', connection);
+  return connection;
 }

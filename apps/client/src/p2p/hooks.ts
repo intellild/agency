@@ -1,83 +1,38 @@
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import { useCallback, useEffect, useRef } from 'react';
-import { authAtom, getAccessToken } from '@/stores/auth';
+import { useCallback, useEffect } from 'react';
 import { store } from '@/stores/root';
-import type { ConnectionState, P2PClient } from './client';
-import { getP2PClient, isLibp2pSupported, resetP2PClient } from './client';
+import { isLibp2pSupported } from './client';
 import {
+  connectP2PAtom,
+  disconnectP2PAtom,
   p2pAutoConnectAtom,
+  p2pAutoConnectEffect,
   p2pConfigAtom,
-  p2pConnectionErrorAtom,
-  p2pConnectionInfoAtom,
   p2pConnectionStateAtom,
-  p2pEnabledAtom,
-  p2pReconnectStateAtom,
+  p2pInitEffect,
+  p2pReconnectEffect,
   p2pStatusAtom,
+  resetP2PAtom,
 } from './store';
 
 // Main P2P hook
 export function useP2P() {
   const status = useAtomValue(p2pStatusAtom);
   const config = useAtomValue(p2pConfigAtom);
-  const info = useAtomValue(p2pConnectionInfoAtom);
-  const reconnectState = useAtomValue(p2pReconnectStateAtom);
   const [autoConnect, setAutoConnect] = useAtom(p2pAutoConnectAtom);
 
-  const setState = useSetAtom(p2pConnectionStateAtom);
-  const setError = useSetAtom(p2pConnectionErrorAtom);
-  const setInfo = useSetAtom(p2pConnectionInfoAtom);
-  const setEnabled = useSetAtom(p2pEnabledAtom);
+  const setConnectionState = useSetAtom(p2pConnectionStateAtom);
 
-  const clientRef = useRef<P2PClient | null>(null);
+  // Subscribe to atom effects
+  useAtom(p2pAutoConnectEffect);
+  useAtom(p2pReconnectEffect);
+  useAtom(p2pInitEffect);
 
-  // Initialize client once
+  // Initialize P2P support check (fallback if effect doesn't run)
   useEffect(() => {
-    if (!clientRef.current) {
-      clientRef.current = getP2PClient();
-
-      // Subscribe to state changes
-      const unsubscribe = clientRef.current.onStateChange((state, error) => {
-        setState(state);
-        setError(error || null);
-
-        const connectionInfo = clientRef.current?.getConnectionInfo();
-        if (connectionInfo) {
-          setInfo({
-            peerId: connectionInfo.peerId,
-            relayConnected: connectionInfo.relayConnected,
-            directConnected: connectionInfo.directConnected,
-            serverPeerId: config?.serverPeerId || null,
-          });
-        }
-      });
-
-      // Check browser support
-      setEnabled(isLibp2pSupported());
-
-      return () => {
-        unsubscribe();
-      };
-    }
-  }, [config?.serverPeerId, setState, setError, setInfo, setEnabled]);
-
-  // Auto-connect on config change
-  useEffect(() => {
-    const initAndConnect = async () => {
-      if (config && autoConnect && status.canConnect) {
-        try {
-          const token = await getAccessToken();
-          if (!clientRef.current) return;
-
-          clientRef.current.initialize(config, token);
-          await clientRef.current.connect();
-        } catch (err) {
-          console.error('Auto-connect failed:', err);
-        }
-      }
-    };
-
-    initAndConnect();
-  }, [config, autoConnect, status.canConnect]);
+    const supported = isLibp2pSupported();
+    setConnectionState(prev => ({ ...prev, enabled: supported }));
+  }, [setConnectionState]);
 
   // Manual connect
   const connect = useCallback(async () => {
@@ -85,34 +40,32 @@ export function useP2P() {
       throw new Error('P2P config not available');
     }
 
-    const token = await getAccessToken();
-    if (!clientRef.current) {
-      clientRef.current = getP2PClient();
-    }
-
-    clientRef.current.initialize(config, token);
-    return clientRef.current.connect();
+    return store.set(connectP2PAtom);
   }, [config]);
 
   // Disconnect
   const disconnect = useCallback(async () => {
-    if (clientRef.current) {
-      await clientRef.current.disconnect();
-    }
+    store.set(disconnectP2PAtom);
   }, []);
 
   // Reset and cleanup
   const reset = useCallback(() => {
-    resetP2PClient();
-    clientRef.current = null;
+    store.set(resetP2PAtom);
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Note: We don't disconnect on unmount to allow persistent connections
+      // across component lifecycles. The disconnectP2PAtom should be called
+      // explicitly when logout happens.
+    };
   }, []);
 
   return {
     // State
     ...status,
-    info,
     config,
-    reconnectState,
     autoConnect,
 
     // Actions
@@ -121,25 +74,6 @@ export function useP2P() {
     reset,
     setAutoConnect,
   };
-}
-
-// Hook to sync P2P config from auth response
-export function useP2PAuthSync() {
-  const auth = useAtomValue(authAtom);
-  const setConfig = useSetAtom(p2pConfigAtom);
-  const setEnabled = useSetAtom(p2pEnabledAtom);
-
-  useEffect(() => {
-    // Check browser support
-    const supported = isLibp2pSupported();
-    setEnabled(supported);
-
-    if (auth?.p2p && supported) {
-      setConfig(auth.p2p);
-    } else {
-      setConfig(null);
-    }
-  }, [auth, setConfig, setEnabled]);
 }
 
 // Hook to get connection state for UI

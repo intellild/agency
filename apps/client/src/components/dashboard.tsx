@@ -2,7 +2,7 @@
 
 import { useNavigate } from '@modern-js/runtime/router';
 
-import { LogOut } from 'lucide-react';
+import { Loader2, LogOut, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -12,15 +12,68 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { useAuth } from '@/hooks/auth';
+import { useP2P } from '@/p2p';
 
 export function Dashboard() {
   const navigate = useNavigate();
   const [_auth, setAuth] = useAuth();
 
+  // Use P2P hook for connection management
+  const {
+    isConnected,
+    isConnecting,
+    hasError,
+    errorMessage,
+    canConnect,
+    info,
+    connect,
+    disconnect,
+    autoConnect,
+    setAutoConnect,
+  } = useP2P();
+
   const handleLogout = async () => {
+    await disconnect();
     setAuth(null);
     navigate('/login');
   };
+
+  const handleConnect = async () => {
+    try {
+      await connect();
+    } catch (err) {
+      console.error('Failed to connect:', err);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    await disconnect();
+  };
+
+  // Get connection status display
+  const getConnectionStatus = () => {
+    if (isConnected) {
+      return { icon: Wifi, color: 'text-green-500', text: '已连接' };
+    }
+    if (isConnecting) {
+      return {
+        icon: Loader2,
+        color: 'text-yellow-500 animate-spin',
+        text: '连接中...',
+      };
+    }
+    if (hasError) {
+      return {
+        icon: WifiOff,
+        color: 'text-red-500',
+        text: errorMessage || '连接错误',
+      };
+    }
+    return { icon: WifiOff, color: 'text-gray-400', text: '未连接' };
+  };
+
+  const status = getConnectionStatus();
+  const StatusIcon = status.icon;
 
   return (
     <div className="flex min-h-screen flex-col p-6">
@@ -30,20 +83,6 @@ export function Dashboard() {
           <p className="text-muted-foreground text-sm">已连接到服务器</p>
         </div>
         <div className="flex items-center gap-2">
-          {/*{userInfo && (*/}
-          {/*  <div className="mr-4 flex items-center gap-2">*/}
-          {/*    <Avatar className="h-8 w-8">*/}
-          {/*      <AvatarImage*/}
-          {/*        src={`https://github.com/${userInfo.username}.png`}*/}
-          {/*        alt={userInfo.username}*/}
-          {/*      />*/}
-          {/*      <AvatarFallback>*/}
-          {/*        <User className="h-4 w-4" />*/}
-          {/*      </AvatarFallback>*/}
-          {/*    </Avatar>*/}
-          {/*    <span className="font-medium text-sm">{userInfo.username}</span>*/}
-          {/*  </div>*/}
-          {/*)}*/}
           <Button variant="outline" size="sm" onClick={handleLogout}>
             <LogOut className="mr-2 h-4 w-4" />
             退出登录
@@ -52,6 +91,66 @@ export function Dashboard() {
       </header>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {/* P2P Connection Status Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>P2P 连接状态</CardTitle>
+            <CardDescription>与服务器的 P2P 连接状态</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <StatusIcon className={`h-5 w-5 ${status.color}`} />
+                <span className="font-medium text-sm">{status.text}</span>
+              </div>
+
+              {info.peerId && (
+                <div className="text-muted-foreground text-xs">
+                  <p>节点 ID: {info.peerId.slice(0, 20)}...</p>
+                </div>
+              )}
+
+              {info.directConnected && (
+                <div className="flex items-center gap-2 text-green-600 text-xs">
+                  <div className="h-2 w-2 rounded-full bg-green-500" />
+                  直接 WebRTC 连接
+                </div>
+              )}
+
+              {info.relayConnected && (
+                <div className="flex items-center gap-2 text-xs text-yellow-600">
+                  <div className="h-2 w-2 rounded-full bg-yellow-500" />
+                  中继连接
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2">
+                {canConnect && (
+                  <Button size="sm" onClick={handleConnect}>
+                    连接
+                  </Button>
+                )}
+                {(isConnected || isConnecting) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleDisconnect}
+                  >
+                    断开
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setAutoConnect(!autoConnect)}
+                >
+                  {autoConnect ? '自动连接: 开' : '自动连接: 关'}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>代理状态</CardTitle>
@@ -92,42 +191,15 @@ export function Dashboard() {
           <CardDescription>最近的系统活动</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-muted-foreground text-sm">暂无活动记录</div>
+          <div className="text-muted-foreground text-sm">
+            {isConnected ? (
+              <p className="text-green-600">✓ P2P 连接已建立</p>
+            ) : (
+              <p>暂无活动记录</p>
+            )}
+          </div>
         </CardContent>
       </Card>
-
-      {/*{userInfo && (*/}
-      {/*  <Card className="mt-6">*/}
-      {/*    <CardHeader>*/}
-      {/*      <CardTitle className="flex items-center gap-2">*/}
-      {/*        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">*/}
-      {/*          <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />*/}
-      {/*        </svg>*/}
-      {/*        GitHub 账户信息*/}
-      {/*      </CardTitle>*/}
-      {/*      <CardDescription>已连接的 GitHub 账户</CardDescription>*/}
-      {/*    </CardHeader>*/}
-      {/*    <CardContent>*/}
-      {/*      <div className="flex items-center gap-4">*/}
-      {/*        <Avatar className="h-16 w-16">*/}
-      {/*          <AvatarImage*/}
-      {/*            src={`https://github.com/${userInfo.username}.png`}*/}
-      {/*            alt={userInfo.username}*/}
-      {/*          />*/}
-      {/*          <AvatarFallback>*/}
-      {/*            <User className="h-8 w-8" />*/}
-      {/*          </AvatarFallback>*/}
-      {/*        </Avatar>*/}
-      {/*        <div>*/}
-      {/*          <p className="font-medium text-lg">{userInfo.username}</p>*/}
-      {/*          <p className="text-muted-foreground text-sm">*/}
-      {/*            ID: {userInfo.userId}*/}
-      {/*          </p>*/}
-      {/*        </div>*/}
-      {/*      </div>*/}
-      {/*    </CardContent>*/}
-      {/*  </Card>*/}
-      {/*)}*/}
     </div>
   );
 }
