@@ -75,15 +75,6 @@ export interface P2PConnectionState {
 
   // Connection info
   info: P2PConnectionInfo;
-
-  // Reconnection state
-  reconnect: {
-    attempts: number;
-    maxAttempts: number;
-    nextAttemptDelay: number;
-    isReconnecting: boolean;
-    timer: ReturnType<typeof setTimeout> | null;
-  };
 }
 
 const initialConnectionState: P2PConnectionState = {
@@ -94,13 +85,6 @@ const initialConnectionState: P2PConnectionState = {
     relayConnected: false,
     directConnected: false,
     serverPeerId: null,
-  },
-  reconnect: {
-    attempts: 0,
-    maxAttempts: 5,
-    nextAttemptDelay: 0,
-    isReconnecting: false,
-    timer: null,
   },
 };
 
@@ -121,14 +105,13 @@ export interface P2PStatus {
   errorMessage: string | null;
   canConnect: boolean;
   info: P2PConnectionInfo;
-  reconnect: P2PConnectionState['reconnect'];
 }
 
 export const p2pStatusAtom = atom<P2PStatus>(get => {
   const config = get(p2pConfigAtom);
   const auth = get(authAtom);
   const connectionState = get(p2pConnectionStateAtom);
-  const { state, error, info, reconnect } = connectionState;
+  const { state, error, info } = connectionState;
 
   const isConnected = state === 'connected';
   const isConnecting =
@@ -147,17 +130,12 @@ export const p2pStatusAtom = atom<P2PStatus>(get => {
     canConnect:
       !!config && !!auth?.accessToken && !isConnected && !isConnecting,
     info,
-    reconnect,
   };
 });
 
 // ============================================
 // P2P Connection Action Atoms
 // ============================================
-
-// Constants for reconnection
-const MAX_RECONNECT_ATTEMPTS = 5;
-const RECONNECT_BASE_DELAY = 1000;
 
 // Connect P2P action atom
 export const connectP2PAtom = atom(null, async (get, set): Promise<boolean> => {
@@ -196,11 +174,6 @@ export const connectP2PAtom = atom(null, async (get, set): Promise<boolean> => {
     return false;
   }
 
-  // Clear any existing reconnect timer
-  if (connectionState.reconnect.timer) {
-    clearTimeout(connectionState.reconnect.timer);
-  }
-
   // Clean up existing connection if any
   if (existingLibp2p) {
     try {
@@ -217,10 +190,6 @@ export const connectP2PAtom = atom(null, async (get, set): Promise<boolean> => {
     ...connectionState,
     state: 'relay-connecting',
     error: null,
-    reconnect: {
-      ...connectionState.reconnect,
-      timer: null,
-    },
   });
 
   try {
@@ -267,12 +236,6 @@ export const connectP2PAtom = atom(null, async (get, set): Promise<boolean> => {
           relayConnected: false,
           directConnected: true,
         },
-        reconnect: {
-          ...prev.reconnect,
-          attempts: 0,
-          nextAttemptDelay: 0,
-          isReconnecting: false,
-        },
       }));
     } catch (webrtcErr) {
       // Keep relay connection as fallback
@@ -284,12 +247,6 @@ export const connectP2PAtom = atom(null, async (get, set): Promise<boolean> => {
           ...prev.info,
           relayConnected: true,
           directConnected: false,
-        },
-        reconnect: {
-          ...prev.reconnect,
-          attempts: 0,
-          nextAttemptDelay: 0,
-          isReconnecting: false,
         },
       }));
     }
@@ -331,12 +288,6 @@ export const connectP2PAtom = atom(null, async (get, set): Promise<boolean> => {
 export const disconnectP2PAtom = atom(null, async (get, set) => {
   const libp2p = get(libp2pNodeAtom);
   const serverConnection = get(serverConnectionAtom);
-  const connectionState = get(p2pConnectionStateAtom);
-
-  // Clear reconnect timer
-  if (connectionState.reconnect.timer) {
-    clearTimeout(connectionState.reconnect.timer);
-  }
 
   // Close server connection
   if (serverConnection) {
@@ -358,31 +309,19 @@ export const disconnectP2PAtom = atom(null, async (get, set) => {
     set(libp2pNodeAtom, null);
   }
 
-  set(p2pConnectionStateAtom, {
-    ...connectionState,
+  set(p2pConnectionStateAtom, prev => ({
+    ...prev,
     state: 'disconnected',
-    reconnect: {
-      ...connectionState.reconnect,
-      timer: null,
-      isReconnecting: false,
-    },
     info: {
-      ...connectionState.info,
+      ...prev.info,
       relayConnected: false,
       directConnected: false,
     },
-  });
+  }));
 });
 
 // Reset P2P action atom
-export const resetP2PAtom = atom(null, (get, set) => {
-  const connectionState = get(p2pConnectionStateAtom);
-
-  // Clear reconnect timer
-  if (connectionState.reconnect.timer) {
-    clearTimeout(connectionState.reconnect.timer);
-  }
-
+export const resetP2PAtom = atom(null, (_get, set) => {
   set(libp2pNodeAtom, null);
   set(serverConnectionAtom, null);
   set(p2pConnectionStateAtom, initialConnectionState);
@@ -414,83 +353,5 @@ export const p2pConnectionEffect = atomEffect((get, set) => {
   // Disconnect when auth becomes null (logout)
   if (!auth?.accessToken && state !== 'idle' && state !== 'disconnected') {
     set(disconnectP2PAtom);
-  }
-});
-
-// Reconnection effect - watches connection state
-export const p2pReconnectEffect = atomEffect((get, set) => {
-  const config = get(p2pConfigAtom);
-  const auth = get(authAtom);
-  const connectionState = get(p2pConnectionStateAtom);
-  const { state, reconnect } = connectionState;
-
-  // Clear existing timer if any
-  if (reconnect.timer) {
-    clearTimeout(reconnect.timer);
-    set(p2pConnectionStateAtom, {
-      ...connectionState,
-      reconnect: { ...reconnect, timer: null },
-    });
-  }
-
-  // Only attempt reconnect on error or disconnect states
-  if (
-    (state === 'error' || state === 'disconnected') &&
-    config &&
-    auth?.accessToken
-  ) {
-    // Check max attempts
-    if (reconnect.attempts >= MAX_RECONNECT_ATTEMPTS) {
-      set(p2pConnectionStateAtom, {
-        ...connectionState,
-        reconnect: {
-          ...reconnect,
-          isReconnecting: false,
-          nextAttemptDelay: 0,
-        },
-        error: 'Max reconnection attempts reached',
-      });
-      return;
-    }
-
-    // Calculate delay with exponential backoff
-    const delay = RECONNECT_BASE_DELAY * 2 ** reconnect.attempts;
-
-    set(p2pConnectionStateAtom, {
-      ...connectionState,
-      reconnect: {
-        ...reconnect,
-        nextAttemptDelay: delay,
-        isReconnecting: true,
-      },
-    });
-
-    // Schedule reconnection
-    const timer = setTimeout(() => {
-      set(p2pConnectionStateAtom, prev => ({
-        ...prev,
-        reconnect: {
-          ...prev.reconnect,
-          attempts: prev.reconnect.attempts + 1,
-        },
-      }));
-      set(connectP2PAtom);
-    }, delay);
-
-    set(p2pConnectionStateAtom, prev => ({
-      ...prev,
-      reconnect: { ...prev.reconnect, timer },
-    }));
-  } else if (state === 'connected') {
-    // Reset reconnection state on successful connection
-    set(p2pConnectionStateAtom, prev => ({
-      ...prev,
-      reconnect: {
-        ...prev.reconnect,
-        attempts: 0,
-        nextAttemptDelay: 0,
-        isReconnecting: false,
-      },
-    }));
   }
 });

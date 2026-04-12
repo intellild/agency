@@ -29,7 +29,6 @@ export {
   // Effects
   p2pConnectionEffect,
   p2pConnectionStateAtom,
-  p2pReconnectEffect,
   p2pStatusAtom,
   resetP2PAtom,
   serverConnectionAtom,
