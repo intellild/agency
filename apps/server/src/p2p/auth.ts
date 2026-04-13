@@ -399,12 +399,15 @@ export function createConnectionGater(p2pAuth: P2PAuth): ConnectionGater {
       return false;
     },
     denyInboundEncryptedConnection: async (
-      peerId: PeerId,
+      _peerId: PeerId,
       _maConn: MultiaddrConnection,
     ) => {
-      // Check auth after encryption is established
-      const isAuthorized = p2pAuth.isAuthorized(peerId.toString());
-      return !isAuthorized;
+      // // Check auth after encryption is established
+      // const isAuthorized = p2pAuth.isAuthorized(peerId.toString());
+      // return !isAuthorized;
+      // Allow encrypted connections - auth will be enforced at protocol level
+      // This allows the peer to connect and authenticate via a protocol handler
+      return false;
     },
     denyOutboundEncryptedConnection: async (
       _peerId: PeerId,
@@ -413,11 +416,13 @@ export function createConnectionGater(p2pAuth: P2PAuth): ConnectionGater {
       return false;
     },
     denyInboundUpgradedConnection: async (
-      peerId: PeerId,
+      _peerId: PeerId,
       _maConn: MultiaddrConnection,
     ) => {
-      const isAuthorized = p2pAuth.isAuthorized(peerId.toString());
-      return !isAuthorized;
+      // const isAuthorized = p2pAuth.isAuthorized(peerId.toString());
+      // return !isAuthorized;
+      // Allow upgraded connections - auth will be enforced at protocol level
+      return false;
     },
     denyOutboundUpgradedConnection: async (
       _peerId: PeerId,

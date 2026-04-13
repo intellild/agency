@@ -1,17 +1,13 @@
 import { noise } from '@chainsafe/libp2p-noise';
 import { yamux } from '@chainsafe/libp2p-yamux';
-import {
-  circuitRelayServer,
-  circuitRelayTransport,
-} from '@libp2p/circuit-relay-v2';
+import { circuitRelayServer } from '@libp2p/circuit-relay-v2';
 import { identify } from '@libp2p/identify';
 import type { Connection, PeerId } from '@libp2p/interface';
-import { webRTC } from '@libp2p/webrtc';
 import { webSockets } from '@libp2p/websockets';
 
 import type { Libp2p, Libp2pOptions } from 'libp2p';
 import { createLibp2p } from 'libp2p';
-import { createConnectionGater, P2PAuth } from './auth.js';
+import { P2PAuth } from './auth.js';
 
 // Local interface for ICE server config
 interface ICEServerConfig {
@@ -21,9 +17,7 @@ interface ICEServerConfig {
 }
 
 // P2P configuration from environment
-const P2P_WEBRTC_PORT = Number(process.env.P2P_WEBRTC_PORT ?? 9090);
-const P2P_WS_PORT = Number(process.env.P2P_WS_PORT ?? 9091);
-const P2P_PUBLIC_HOST = process.env.P2P_PUBLIC_HOST ?? 'localhost';
+const P2P_WS_PORT = Number(process.env.P2P_WS_PORT ?? 9090);
 const P2P_MAX_RESERVATIONS = Number(process.env.P2P_MAX_RESERVATIONS ?? 100);
 const P2P_RESERVATION_TTL = Number(process.env.P2P_RESERVATION_TTL ?? 7200000); // 2 hours
 const P2P_MAX_CONNECTIONS_PER_USER = Number(
@@ -41,9 +35,7 @@ export interface P2PNodeConfig {
 
 export interface P2PNodeInfo {
   peerId: string;
-  relayAddresses: string[];
-  webrtcAddresses: string[];
-  wsAddresses: string[];
+  multiaddrs: string[];
 }
 
 let p2pNode: Libp2p | null = null;
@@ -54,9 +46,7 @@ let p2pAuth: P2PAuth | null = null;
  */
 export async function initP2PNode(config: P2PNodeConfig = {}): Promise<Libp2p> {
   const {
-    webrtcPort = P2P_WEBRTC_PORT,
     wsPort = P2P_WS_PORT,
-    publicHost = P2P_PUBLIC_HOST,
     maxReservations = P2P_MAX_RESERVATIONS,
     reservationTtl = P2P_RESERVATION_TTL,
     maxConnectionsPerUser = P2P_MAX_CONNECTIONS_PER_USER,
@@ -74,32 +64,17 @@ export async function initP2PNode(config: P2PNodeConfig = {}): Promise<Libp2p> {
   });
 
   // Create connection gater for auth enforcement
-  const connectionGater = createConnectionGater(p2pAuth);
+  // const connectionGater = createConnectionGater(p2pAuth);
 
   const libp2pOptions: Libp2pOptions = {
-    transports: [
-      circuitRelayTransport({
-        // Circuit relay transport for WebRTC connectivity
-      }),
-      webRTC({
-        // WebRTC listen options
-      }),
-      webSockets(),
-    ],
+    transports: [webSockets()],
     connectionEncrypters: [noise()],
     streamMuxers: [yamux()],
-    connectionGater,
+    // connectionGater,
     addresses: {
       listen: [
-        // WebRTC direct listener
-        `/udp/${webrtcPort}/webrtc-direct`,
         // WebSocket listener for browser connectivity
         `/ip4/0.0.0.0/tcp/${wsPort}/ws`,
-      ],
-      announce: [
-        // Public addresses for clients to connect
-        `/dns4/${publicHost}/udp/${webrtcPort}/webrtc-direct`,
-        `/dns4/${publicHost}/tcp/${wsPort}/ws`,
       ],
     },
     services: {
@@ -152,8 +127,12 @@ export async function initP2PNode(config: P2PNodeConfig = {}): Promise<Libp2p> {
   });
 
   // Start the node
-  await p2pNode.start();
+  // await p2pNode.start();
   console.info(`P2P node started with PeerId: ${p2pNode.peerId.toString()}`);
+  console.log(
+    'Relay listening on multiaddr(s): ',
+    p2pNode.getMultiaddrs().map(ma => ma.toString()),
+  );
 
   return p2pNode;
 }
@@ -195,26 +174,24 @@ export function getP2PNodeInfo(): P2PNodeInfo | null {
   const peerId = p2pNode.peerId.toString();
 
   // Get addresses
-  const relayAddresses: string[] = [];
-  const webrtcAddresses: string[] = [];
-  const wsAddresses: string[] = [];
+  // const relayAddresses: string[] = [];
+  // const webrtcAddresses: string[] = [];
+  // const wsAddresses: string[] = [];
 
-  for (const addr of p2pNode.getMultiaddrs()) {
-    const addrString = addr.toString();
-    if (addrString.includes('/p2p-circuit')) {
-      relayAddresses.push(addrString);
-    } else if (addrString.includes('/webrtc')) {
-      webrtcAddresses.push(addrString);
-    } else if (addrString.includes('/ws')) {
-      wsAddresses.push(addrString);
-    }
-  }
+  // for (const addr of p2pNode.getMultiaddrs()) {
+  //   const addrString = addr.toString();
+  //   if (addrString.includes('/p2p-circuit')) {
+  //     relayAddresses.push(addrString);
+  //   } else if (addrString.includes('/webrtc')) {
+  //     webrtcAddresses.push(addrString);
+  //   } else if (addrString.includes('/ws')) {
+  //     wsAddresses.push(addrString);
+  //   }
+  // }
 
   return {
     peerId,
-    relayAddresses,
-    webrtcAddresses,
-    wsAddresses,
+    multiaddrs: p2pNode.getMultiaddrs().map(ma => ma.toString()),
   };
 }
 

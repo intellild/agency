@@ -1,11 +1,11 @@
-import { useAtomValue } from 'jotai';
+import { useAtom, useAtomValue } from 'jotai';
 import { useCallback, useEffect } from 'react';
 import { store } from '@/stores/root';
 
 import {
   connectP2PAtom,
-  disconnectP2PAtom,
   p2pConfigAtom,
+  p2pConnectionEffect,
   p2pConnectionStateAtom,
   p2pStatusAtom,
   resetP2PAtom,
@@ -17,7 +17,7 @@ export function useP2P() {
   const config = useAtomValue(p2pConfigAtom);
 
   // Subscribe to atom effects
-  // useAtom(p2pConnectionEffect);
+  useAtom(p2pConnectionEffect);
 
   // Manual connect
   const connect = useCallback(async () => {
@@ -30,7 +30,7 @@ export function useP2P() {
 
   // Disconnect
   const disconnect = useCallback(async () => {
-    store.set(disconnectP2PAtom);
+    // store.set(disconnectP2PAtom);
   }, []);
 
   // Reset and cleanup

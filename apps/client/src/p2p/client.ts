@@ -1,5 +1,7 @@
 import { yamux } from '@chainsafe/libp2p-yamux';
 import { circuitRelayTransport } from '@libp2p/circuit-relay-v2';
+import { gossipsub } from '@libp2p/gossipsub';
+import { identify } from '@libp2p/identify';
 import type { Connection } from '@libp2p/interface';
 import { noise } from '@libp2p/noise';
 import { webRTC } from '@libp2p/webrtc';
@@ -12,7 +14,10 @@ export interface P2PConfig {
   serverPeerId: string;
   relayAddresses: string[];
   iceServers: RTCIceServer[];
+  multiaddrs: string[];
 }
+
+export class P2PClient {}
 
 export type ConnectionState =
   | 'idle'
@@ -75,35 +80,34 @@ export function isLibp2pSupported(): boolean {
 export async function createLibp2pNode(config: P2PConfig): Promise<Libp2p> {
   const libp2p = await createLibp2p({
     transports: [
+      webSockets(),
+      circuitRelayTransport(),
       webRTC({
         rtcConfiguration: {
           iceServers: config.iceServers,
         },
       }),
-      webSockets(),
-      circuitRelayTransport(),
     ],
     connectionEncrypters: [noise()],
     streamMuxers: [yamux()],
+    connectionGater: {
+      denyDialMultiaddr: () => {
+        // by default we refuse to dial local addresses from browsers since they
+        // are usually sent by remote peers broadcasting undialable multiaddrs and
+        // cause errors to appear in the console but in this example we are
+        // explicitly connecting to a local node so allow all addresses
+        return false;
+      },
+    },
+    services: {
+      identify: identify(),
+      pubsub: gossipsub(),
+    },
   });
 
+  const connection = await libp2p.dial(multiaddr(config.multiaddrs[0]));
+
   return libp2p;
-}
-
-// Dial server through circuit relay
-export async function dialServer(
-  libp2p: Libp2p,
-  config: P2PConfig,
-): Promise<Connection> {
-  const relayAddr =
-    config.relayAddresses[0] ||
-    `/dns4/localhost/tcp/9091/ws/p2p/${config.serverPeerId}`;
-
-  const serverPeerId = config.serverPeerId;
-  const relayedAddr = multiaddr(`${relayAddr}/p2p-circuit/p2p/${serverPeerId}`);
-
-  const connection = await libp2p.dial(relayedAddr);
-  return connection;
 }
 
 // Attempt direct WebRTC connection

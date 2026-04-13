@@ -15,8 +15,7 @@ const getP2PConfig: RequestHandler = (_req, res) => {
   }
 
   res.json({
-    serverPeerId: p2pInfo.peerId,
-    relayAddresses: p2pInfo.relayAddresses,
+    ...p2pInfo,
     iceServers: getICEServers(),
   });
 };
