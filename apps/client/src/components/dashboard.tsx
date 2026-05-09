@@ -1,9 +1,9 @@
 'use client';
 
 import { useNavigate } from '@modern-js/runtime/router';
-import { useSetAtom } from 'jotai';
-import { Loader2, LogOut, Wifi, WifiOff } from 'lucide-react';
-import { useMemo } from 'react';
+import { useAtomValue, useSetAtom } from 'jotai';
+import { Cpu, Loader2, LogOut, Wifi, WifiOff } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -12,12 +12,17 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { useP2P } from '@/p2p';
+import { connectHostAgent, getLibp2pNode, hostPeersAtom, useP2P } from '@/p2p';
 import { authAtom } from '@/stores/auth';
 
 export function Dashboard() {
   const navigate = useNavigate();
   const setAuth = useSetAtom(authAtom);
+  const hosts = useAtomValue(hostPeersAtom);
+  const [dialingHost, setDialingHost] = useState<string | null>(null);
+  const [hostConnectionMessage, setHostConnectionMessage] = useState<
+    string | null
+  >(null);
 
   // Use P2P hook for connection management
   const {
@@ -47,6 +52,31 @@ export function Dashboard() {
 
   const handleDisconnect = async () => {
     await disconnect();
+  };
+
+  const handleConnectHost = async (hostPeerId: string, addresses: string[]) => {
+    const libp2p = getLibp2pNode();
+    const [address] = addresses;
+
+    if (!libp2p || !address) {
+      setHostConnectionMessage('P2P 未连接或 host 没有可拨号地址');
+      return;
+    }
+
+    setDialingHost(hostPeerId);
+    setHostConnectionMessage(null);
+    try {
+      const status = await connectHostAgent(libp2p, address);
+      setHostConnectionMessage(
+        status.message || `已连接 host ${hostPeerId.slice(0, 12)}...`,
+      );
+    } catch (err) {
+      setHostConnectionMessage(
+        err instanceof Error ? err.message : '连接 host 失败',
+      );
+    } finally {
+      setDialingHost(null);
+    }
   };
 
   // Get connection status display
@@ -149,8 +179,8 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-green-500" />
-              <span className="text-sm">运行中</span>
+              <Cpu className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm">{hosts.length} 个 host 在线</span>
             </div>
           </CardContent>
         </Card>
@@ -175,6 +205,58 @@ export function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Host 列表</CardTitle>
+          <CardDescription>从 server 获取并自动刷新</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {hosts.length > 0 ? (
+            <div className="space-y-3">
+              {hosts.map(host => (
+                <div
+                  key={host.peerId}
+                  className="rounded-md border p-3 text-sm"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">
+                        {host.username || host.userId}
+                      </div>
+                      <div className="truncate text-muted-foreground text-xs">
+                        {host.peerId}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-muted-foreground text-xs">
+                      {new Date(host.updatedAt).toLocaleTimeString()}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={dialingHost === host.peerId}
+                      onClick={() =>
+                        void handleConnectHost(host.peerId, host.addresses)
+                      }
+                    >
+                      {dialingHost === host.peerId ? '连接中' : '连接'}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-muted-foreground text-sm">
+              暂无在线 host
+            </div>
+          )}
+          {hostConnectionMessage && (
+            <div className="mt-3 text-muted-foreground text-xs">
+              {hostConnectionMessage}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="mt-6 flex-1">
         <CardHeader>

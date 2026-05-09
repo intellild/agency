@@ -4,6 +4,8 @@ import { store } from '@/stores/root';
 
 import {
   connectP2PAtom,
+  disconnectP2PAtom,
+  hostPeersRealtimeEffect,
   p2pConfigAtom,
   p2pConnectionEffect,
   p2pConnectionStateAtom,
@@ -18,6 +20,7 @@ export function useP2P() {
 
   // Subscribe to atom effects
   useAtom(p2pConnectionEffect);
+  useAtom(hostPeersRealtimeEffect);
 
   // Manual connect
   const connect = useCallback(async () => {
@@ -30,7 +33,7 @@ export function useP2P() {
 
   // Disconnect
   const disconnect = useCallback(async () => {
-    // store.set(disconnectP2PAtom);
+    await store.set(disconnectP2PAtom);
   }, []);
 
   // Reset and cleanup

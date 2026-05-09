@@ -1,106 +1,160 @@
 # Agency
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+Agency is an Nx monorepo for a distributed AI agent management system.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+The system has three runtime pieces:
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/node?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+- `server`: Hono HTTP API, GitHub OAuth, auth token issuing, libp2p circuit relay, and peer registry.
+- `client`: Modern.js + React dashboard for login, host discovery, and host connection.
+- `host`: local agent runtime that connects to the server relay and exposes an Agent Client Protocol endpoint over libp2p.
 
-## Development Rules
+## Prerequisites
 
-- **Do not use `fastify-plugin`**: Avoid using `fastify-plugin` for plugin registration. Use standard Fastify plugin patterns instead.
-- **Do not use `@fastify/autoload`**: Avoid using `@fastify/autoload` for automatic route/plugin loading. Explicitly register routes and plugins for better clarity and control.
+- Node.js 20+
+- pnpm
+- A GitHub OAuth app
 
-## Run tasks
-
-To run the dev server for your app, use:
-
-```sh
-npx nx serve agency
-```
-
-To create a production bundle:
+Install dependencies from the repository root:
 
 ```sh
-npx nx build agency
+pnpm install
 ```
 
-To see all available targets to run for a project, run:
+Use Nx through pnpm:
 
 ```sh
-npx nx show project agency
+pnpm nx show projects
 ```
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+## Configure Server
 
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+The server reads `~/.agency/config.json` on startup. If the file does not exist, it is created automatically.
 
-## Add new projects
+Example:
 
-While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
+```json
+{
+  "auth": {
+    "jwtSecret": "replace-with-a-long-random-secret"
+  },
+  "github": {
+    "clientId": "your_github_oauth_client_id",
+    "clientSecret": "your_github_oauth_client_secret",
+    "whitelist": ["your-github-login"]
+  },
+  "libp2p": {
+    "wsPort": 9090,
+    "publicAddresses": [
+      "/dns4/relay.example.com/tcp/9090/wss/p2p/<server-peer-id>"
+    ]
+  }
+}
+```
 
-Use the plugin's generator to create new projects.
+For local development, `publicAddresses` can be empty. The server will expose `127.0.0.1` relay addresses to clients.
 
-To generate a new application, use:
+GitHub OAuth app settings:
+
+- Authorization callback URL: `http://localhost:3000/oauth/github/callback`
+- For deployed servers, use `https://your-server.example.com/oauth/github/callback`
+
+The client does not need a GitHub client id. It only needs the server address.
+
+## Run Locally
+
+Start the server:
 
 ```sh
-npx nx g @nx/node:app demo
+pnpm nx serve server
 ```
 
-To generate a new library, use:
+Start the client:
 
 ```sh
-npx nx g @nx/node:lib mylib
+pnpm nx serve client
 ```
 
-You can use `npx nx list` to get a list of installed plugins. Then, run `npx nx list <plugin-name>` to learn about more specific capabilities of a particular plugin. Alternatively, [install Nx Console](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) to browse plugins and generators in your IDE.
+Open the client, enter the server address, for example:
 
-[Learn more about Nx plugins &raquo;](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) | [Browse the plugin registry &raquo;](https://nx.dev/plugin-registry?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+```text
+http://localhost:3000
+```
 
-## Set up CI!
+Sign in with GitHub. The server owns the OAuth flow:
 
-### Step 1
+1. Client opens `SERVER/oauth/github`.
+2. Server redirects to GitHub.
+3. GitHub redirects back to `SERVER/oauth/github/callback`.
+4. Server validates the GitHub user against the whitelist.
+5. Server redirects back to the client callback with auth tokens in the query string.
 
-To connect to Nx Cloud, run the following command:
+## Run a Host
+
+A host needs the server URL and an access token issued by login.
 
 ```sh
-npx nx connect
+AGENCY_SERVER_URL=http://localhost:3000 \
+AGENCY_ACCESS_TOKEN=<access-token> \
+pnpm nx serve host
 ```
 
-Connecting to Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
+The host will:
 
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+- Fetch libp2p relay addresses from `GET /api/p2p/config`.
+- Connect to the server relay.
+- Register itself as a `host` with `POST /api/p2p/peers`.
+- Refresh its registration periodically.
+- Expose `/agency/acp/1.0.0` over libp2p for Agent Client Protocol sessions.
 
-### Step 2
+## Dashboard
 
-Use the following command to configure a CI workflow for your workspace:
+After login, the dashboard:
+
+- Connects to the server relay using libp2p.
+- Registers itself as a `client`.
+- Subscribes to `GET /api/p2p/events` for realtime peer updates.
+- Shows online hosts from the server registry.
+- Connects to a selected host and initializes an ACP session over libp2p.
+
+## HTTP API
+
+Unauthenticated:
+
+- `GET /`
+- `GET /oauth/github`
+- `GET /oauth/github/callback`
+- `POST /auth/refresh`
+
+Authenticated:
+
+- `GET /api/me`
+- `GET /api/dashboard`
+- `GET /api/p2p/config`
+- `GET /api/p2p/peers`
+- `GET /api/p2p/hosts`
+- `GET /api/p2p/events`
+- `POST /api/p2p/peers`
+- `DELETE /api/p2p/peers/:peerId`
+
+Use `Authorization: Bearer <access-token>` for authenticated APIs. The SSE endpoint also accepts `access_token` in the query string because browser `EventSource` cannot set custom headers.
+
+## Build and Check
 
 ```sh
-npx nx g ci-workflow
+pnpm nx build server
+pnpm nx build client
+pnpm nx build @agency/host
+pnpm biome check .
 ```
 
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+Format changed files:
 
-## Install Nx Console
+```sh
+pnpm biome check --write <file-path>
+```
 
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
+## Notes
 
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Useful links
-
-Learn more:
-
-- [Learn more about this workspace setup](https://nx.dev/nx-api/node?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-And join the Nx community:
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+- Do not connect this workspace to Nx Cloud. `neverConnectToCloud` is configured.
+- Use `pnpm nx ...`, not global `nx` or `npx nx`.
+- Node.js built-in imports must use the `node:` prefix.

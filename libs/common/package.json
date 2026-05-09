@@ -13,5 +13,7 @@
     },
     "./package.json": "./package.json"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@agentclientprotocol/sdk": "^0.18.0"
+  }
 }

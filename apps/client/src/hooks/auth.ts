@@ -1,10 +1,6 @@
 import { useAtom } from 'jotai';
-import { useLocalStorage, useSessionStorage } from 'react-use';
+import { useSessionStorage } from 'react-use';
 import { authAtom, serverAddressAtom } from '@/stores/auth';
-
-export function useGithubClientId() {
-  return useLocalStorage('github-client-id', '');
-}
 
 export function useServerAddress() {
   return useAtom(serverAddressAtom);

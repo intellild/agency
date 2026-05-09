@@ -1,10 +1,8 @@
 'use client';
 
 import { useNavigate } from '@modern-js/runtime/router';
-import { useMutation } from '@tanstack/react-query';
 import { CheckCircle, Loader2, XCircle } from 'lucide-react';
-import { $fetch } from 'ofetch';
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParam } from 'react-use';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,45 +12,60 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { useAuth, useServerAddress, useSessionState } from '@/hooks/auth';
-import type { Auth } from '@/stores/auth';
+import { useAuth, useSessionState } from '@/hooks/auth';
 
 export default function OAuthCallbackPage() {
   const navigate = useNavigate();
-
-  const [serverAddress] = useServerAddress();
   const [sessionState, setSessionState] = useSessionState();
-  const code = useSearchParam('code');
-  const state = useSearchParam('state');
-
   const [_auth, setAuth] = useAuth();
+  const [error, setError] = useState<string | null>(null);
+  const [completed, setCompleted] = useState(false);
 
-  const { mutate, isPending, isError, isSuccess, error } = useMutation({
-    async mutationFn() {
-      if (!code) {
-        throw new Error('Invalid code');
-      }
-      if (!state || state !== sessionState) {
-        throw new Error(`Invalid state ${state}, expected ${sessionState}`);
-      }
-      return await $fetch<Auth>('/auth/github/callback', {
-        method: 'POST',
-        baseURL: serverAddress,
-        body: {
-          code,
-        },
-      });
-    },
-    onSuccess(data) {
-      setSessionState(undefined);
-      navigate('/');
-      setAuth(data);
-    },
-  });
+  const state = useSearchParam('state');
+  const accessToken = useSearchParam('accessToken');
+  const refreshToken = useSearchParam('refreshToken');
+  const githubToken = useSearchParam('githubToken');
+  const userId = useSearchParam('userId');
+  const username = useSearchParam('username');
+  const oauthError = useSearchParam('error');
+
+  const isPending = !completed && !error;
+
+  const authPayload = useMemo(() => {
+    if (!accessToken || !refreshToken || !githubToken || !userId || !username) {
+      return null;
+    }
+
+    return {
+      accessToken,
+      refreshToken,
+      githubToken,
+      userId,
+      username,
+    };
+  }, [accessToken, refreshToken, githubToken, userId, username]);
 
   useEffect(() => {
-    mutate();
-  }, []);
+    if (oauthError) {
+      setError(oauthError);
+      return;
+    }
+
+    if (!state || state !== sessionState) {
+      setError(`Invalid state ${state}, expected ${sessionState}`);
+      return;
+    }
+
+    if (!authPayload) {
+      setError('Missing authentication payload');
+      return;
+    }
+
+    setAuth(authPayload);
+    setSessionState(undefined);
+    setCompleted(true);
+    navigate('/');
+  }, [authPayload, oauthError, state, sessionState]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background to-muted p-4">
@@ -67,27 +80,24 @@ export default function OAuthCallbackPage() {
               </CardDescription>
             </>
           )}
-          {isSuccess && (
+          {completed && (
             <>
               <CheckCircle className="mx-auto mb-4 h-12 w-12 text-green-500" />
               <CardTitle className="text-2xl">Login Successful!</CardTitle>
               <CardDescription>Redirecting to dashboard...</CardDescription>
             </>
           )}
-          {isError && (
+          {error && (
             <>
               <XCircle className="mx-auto mb-4 h-12 w-12 text-red-500" />
               <CardTitle className="text-2xl">Login Failed</CardTitle>
-              <CardDescription>{error.message}</CardDescription>
+              <CardDescription>{error}</CardDescription>
             </>
           )}
         </CardHeader>
         <CardContent>
-          {isError && (
-            <Button
-              onClick={() => navigate('/login')}
-              className="w-full rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
-            >
+          {error && (
+            <Button onClick={() => navigate('/login')} className="w-full">
               Back to Login
             </Button>
           )}

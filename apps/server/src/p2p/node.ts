@@ -7,7 +7,7 @@ import { webSockets } from '@libp2p/websockets';
 
 import type { Libp2p, Libp2pOptions } from 'libp2p';
 import { createLibp2p } from 'libp2p';
-import { P2PAuth } from './auth.js';
+import { removePeer } from './registry.js';
 
 // Local interface for ICE server config
 interface ICEServerConfig {
@@ -20,17 +20,12 @@ interface ICEServerConfig {
 const P2P_WS_PORT = Number(process.env.P2P_WS_PORT ?? 9090);
 const P2P_MAX_RESERVATIONS = Number(process.env.P2P_MAX_RESERVATIONS ?? 100);
 const P2P_RESERVATION_TTL = Number(process.env.P2P_RESERVATION_TTL ?? 7200000); // 2 hours
-const P2P_MAX_CONNECTIONS_PER_USER = Number(
-  process.env.P2P_MAX_CONNECTIONS_PER_USER ?? 5,
-);
-
 export interface P2PNodeConfig {
   webrtcPort?: number;
   wsPort?: number;
-  publicHost?: string;
+  publicAddresses?: string[];
   maxReservations?: number;
   reservationTtl?: number;
-  maxConnectionsPerUser?: number;
 }
 
 export interface P2PNodeInfo {
@@ -39,7 +34,7 @@ export interface P2PNodeInfo {
 }
 
 let p2pNode: Libp2p | null = null;
-let p2pAuth: P2PAuth | null = null;
+let exposedPublicAddresses: string[] = [];
 
 /**
  * Initialize the libp2p node with WebRTC and Circuit Relay
@@ -47,30 +42,16 @@ let p2pAuth: P2PAuth | null = null;
 export async function initP2PNode(config: P2PNodeConfig = {}): Promise<Libp2p> {
   const {
     wsPort = P2P_WS_PORT,
+    publicAddresses = [],
     maxReservations = P2P_MAX_RESERVATIONS,
     reservationTtl = P2P_RESERVATION_TTL,
-    maxConnectionsPerUser = P2P_MAX_CONNECTIONS_PER_USER,
   } = config;
-
-  // Initialize P2P auth handler
-  p2pAuth = new P2PAuth({
-    maxConnectionsPerUser,
-    onAuthFailure: (peerId: string, reason: string) => {
-      console.warn(`P2P auth failed for peer ${peerId}: ${reason}`);
-    },
-    onConnectionClosed: (peerId: string, userId: string) => {
-      console.info(`P2P connection closed: peer=${peerId}, user=${userId}`);
-    },
-  });
-
-  // Create connection gater for auth enforcement
-  // const connectionGater = createConnectionGater(p2pAuth);
+  exposedPublicAddresses = publicAddresses;
 
   const libp2pOptions: Libp2pOptions = {
     transports: [webSockets()],
     connectionEncrypters: [noise()],
     streamMuxers: [yamux()],
-    // connectionGater,
     addresses: {
       listen: [
         // WebSocket listener for browser connectivity
@@ -91,25 +72,17 @@ export async function initP2PNode(config: P2PNodeConfig = {}): Promise<Libp2p> {
 
   p2pNode = await createLibp2p(libp2pOptions);
 
-  // Handle incoming connections for auth
   p2pNode.addEventListener('peer:connect', event => {
     const peerId = event.detail as PeerId;
     const peerIdStr = peerId.toString();
     console.info(`Peer connected: ${peerIdStr}`);
-
-    // Validate connection auth
-    if (!p2pAuth?.isAuthorized(peerIdStr)) {
-      console.warn(`Peer not yet authorized: ${peerIdStr}`);
-      // Note: We can't close the connection here as we don't have the Connection object
-      // The connection gater will handle this on the next upgrade
-    }
   });
 
   p2pNode.addEventListener('peer:disconnect', event => {
     const peerId = event.detail as PeerId;
     const peerIdStr = peerId.toString();
     console.info(`Peer disconnected: ${peerIdStr}`);
-    p2pAuth?.removeConnection(peerIdStr);
+    removePeer(peerIdStr);
   });
 
   // Handle connection events for tracking
@@ -123,7 +96,7 @@ export async function initP2PNode(config: P2PNodeConfig = {}): Promise<Libp2p> {
     const connection = event.detail as Connection;
     const peerIdStr = connection.remotePeer.toString();
     console.info(`Connection closed: ${peerIdStr}`);
-    p2pAuth?.removeConnection(peerIdStr);
+    removePeer(peerIdStr);
   });
 
   // Start the node
@@ -144,7 +117,6 @@ export async function stopP2PNode(): Promise<void> {
   if (p2pNode) {
     await p2pNode.stop();
     p2pNode = null;
-    p2pAuth = null;
     console.info('P2P node stopped');
   }
 }
@@ -157,13 +129,6 @@ export function getP2PNode(): Libp2p | null {
 }
 
 /**
- * Get P2P auth handler
- */
-export function getP2PAuth(): P2PAuth | null {
-  return p2pAuth;
-}
-
-/**
  * Get node information for client connections
  */
 export function getP2PNodeInfo(): P2PNodeInfo | null {
@@ -172,6 +137,8 @@ export function getP2PNodeInfo(): P2PNodeInfo | null {
   }
 
   const peerId = p2pNode.peerId.toString();
+  const isProduction =
+    process.env.NODE_ENV === 'production' || process.env.ENV === 'production';
 
   // Get addresses
   // const relayAddresses: string[] = [];
@@ -189,9 +156,17 @@ export function getP2PNodeInfo(): P2PNodeInfo | null {
   //   }
   // }
 
+  const localAddresses = p2pNode.getMultiaddrs().map(ma => ma.toString());
+  const publicAddresses =
+    isProduction && exposedPublicAddresses.length > 0
+      ? exposedPublicAddresses
+      : localAddresses.map(addr =>
+          addr.replace('/ip4/0.0.0.0/', '/ip4/127.0.0.1/'),
+        );
+
   return {
     peerId,
-    multiaddrs: p2pNode.getMultiaddrs().map(ma => ma.toString()),
+    multiaddrs: publicAddresses,
   };
 }
 

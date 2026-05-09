@@ -6,7 +6,6 @@ import type { Libp2p } from 'libp2p';
 import { authAtom, serverAddressAtom } from '@/stores/auth';
 import type { ConnectionState, P2PConfig } from './client';
 import {
-  attemptWebRTCDirect,
   createLibp2pNode,
   dialServer,
   isLibp2pSupported,
@@ -21,6 +20,8 @@ let libp2pNodeInstance: Libp2p | null = null;
 
 // Server connection instance
 let serverConnectionInstance: Connection | null = null;
+let peersEventSource: EventSource | null = null;
+let peersEventSourceKey: string | null = null;
 
 // Accessor functions
 export function getLibp2pNode(): Libp2p | null {
@@ -50,7 +51,7 @@ export const p2pConfigQueryAtom = atomWithQuery(get => {
   const isLoggedIn = !!auth?.accessToken;
 
   return {
-    queryKey: ['p2p', 'config'],
+    queryKey: ['p2p', 'config', serverAddress, auth?.userId],
     queryFn: async (): Promise<P2PConfig> => {
       const response = await fetch(`${serverAddress}/api/p2p/config`, {
         headers: {
@@ -72,6 +73,53 @@ export const p2pConfigQueryAtom = atomWithQuery(get => {
 export const p2pConfigAtom = atom<P2PConfig | null>(get => {
   const queryResult = get(p2pConfigQueryAtom);
   return queryResult.data ?? null;
+});
+
+export interface HostPeer {
+  peerId: string;
+  type: 'host';
+  userId: string;
+  username?: string;
+  addresses: string[];
+  connectedAt: string;
+  updatedAt: string;
+}
+
+export const hostPeersQueryAtom = atomWithQuery(get => {
+  const auth = get(authAtom);
+  const serverAddress = get(serverAddressAtom);
+  const isLoggedIn = !!auth?.accessToken;
+
+  return {
+    queryKey: ['p2p', 'hosts', serverAddress, auth?.userId],
+    queryFn: async (): Promise<{ hosts: HostPeer[] }> => {
+      const response = await fetch(`${serverAddress}/api/p2p/hosts`, {
+        headers: {
+          Authorization: `Bearer ${auth?.accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch host list');
+      }
+
+      return response.json();
+    },
+    enabled: isLoggedIn,
+    refetchInterval: 2000,
+  };
+});
+
+const hostPeersRealtimeAtom = atom<HostPeer[] | null>(null);
+
+export const hostPeersAtom = atom<HostPeer[]>(get => {
+  const realtimeHosts = get(hostPeersRealtimeAtom);
+  if (realtimeHosts) {
+    return realtimeHosts;
+  }
+
+  const queryResult = get(hostPeersQueryAtom);
+  return queryResult.data?.hosts ?? [];
 });
 
 // ============================================
@@ -158,6 +206,7 @@ export const p2pStatusAtom = atom<P2PStatus>(get => {
 export const connectP2PAtom = atom(null, async (get, set): Promise<boolean> => {
   const config = get(p2pConfigAtom);
   const auth = get(authAtom);
+  const serverAddress = get(serverAddressAtom);
   const existingLibp2p = getLibp2pNode();
   const connectionState = get(p2pConnectionStateAtom);
   const { state } = connectionState;
@@ -187,7 +236,12 @@ export const connectP2PAtom = atom(null, async (get, set): Promise<boolean> => {
   }
 
   // Connection in progress
-  if (state === 'relay-connecting' || state === 'webrtc-connecting') {
+  if (
+    state === 'relay-connecting' ||
+    state === 'relay-connected' ||
+    state === 'signal-exchanging' ||
+    state === 'webrtc-connecting'
+  ) {
     return false;
   }
 
@@ -214,6 +268,24 @@ export const connectP2PAtom = atom(null, async (get, set): Promise<boolean> => {
     const libp2p = await createLibp2pNode(config);
     await libp2p.start();
     setLibp2pNode(libp2p);
+    const peerId = libp2p.peerId.toString();
+
+    const registerResponse = await fetch(`${serverAddress}/api/p2p/peers`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${auth.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        peerId,
+        type: 'client',
+        username: auth.username,
+        addresses: libp2p.getMultiaddrs().map(addr => addr.toString()),
+      }),
+    });
+    if (!registerResponse.ok) {
+      throw new Error('Failed to register client peer');
+    }
 
     // Update state
     set(p2pConnectionStateAtom, prev => ({
@@ -231,42 +303,15 @@ export const connectP2PAtom = atom(null, async (get, set): Promise<boolean> => {
     const serverConnection = await dialServer(libp2p, config);
     setServerConnection(serverConnection);
 
-    // Attempt WebRTC direct connection
     set(p2pConnectionStateAtom, prev => ({
       ...prev,
-      state: 'webrtc-connecting',
+      state: 'connected',
+      info: {
+        ...prev.info,
+        relayConnected: true,
+        directConnected: false,
+      },
     }));
-
-    try {
-      const directConnection = await attemptWebRTCDirect(
-        libp2p,
-        config.serverPeerId,
-      );
-      // Close relay connection if direct succeeds
-      await serverConnection.close();
-      setServerConnection(directConnection);
-      set(p2pConnectionStateAtom, prev => ({
-        ...prev,
-        state: 'connected',
-        info: {
-          ...prev.info,
-          relayConnected: false,
-          directConnected: true,
-        },
-      }));
-    } catch (webrtcErr) {
-      // Keep relay connection as fallback
-      console.log('Direct WebRTC failed, using relay:', webrtcErr);
-      set(p2pConnectionStateAtom, prev => ({
-        ...prev,
-        state: 'connected',
-        info: {
-          ...prev.info,
-          relayConnected: true,
-          directConnected: false,
-        },
-      }));
-    }
 
     // Setup connection event handlers
     const handleDisconnect = () => {
@@ -291,6 +336,22 @@ export const connectP2PAtom = atom(null, async (get, set): Promise<boolean> => {
 
     return true;
   } catch (error) {
+    const failedLibp2p = getLibp2pNode();
+    const failedPeerId = failedLibp2p?.peerId.toString();
+    if (failedPeerId && auth?.accessToken) {
+      await fetch(`${serverAddress}/api/p2p/peers/${failedPeerId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${auth.accessToken}`,
+        },
+      }).catch(() => undefined);
+    }
+    if (failedLibp2p) {
+      await failedLibp2p.stop().catch(() => undefined);
+      setLibp2pNode(null);
+      setServerConnection(null);
+    }
+
     const errorMsg = error instanceof Error ? error.message : 'Unknown error';
     set(p2pConnectionStateAtom, prev => ({
       ...prev,
@@ -302,9 +363,21 @@ export const connectP2PAtom = atom(null, async (get, set): Promise<boolean> => {
 });
 
 // Disconnect P2P action atom
-export const disconnectP2PAtom = atom(null, async (_get, set) => {
+export const disconnectP2PAtom = atom(null, async (get, set) => {
   const libp2p = getLibp2pNode();
   const serverConnection = getServerConnection();
+  const auth = get(authAtom);
+  const serverAddress = get(serverAddressAtom);
+  const peerId = libp2p?.peerId.toString();
+
+  if (peerId && auth?.accessToken) {
+    await fetch(`${serverAddress}/api/p2p/peers/${peerId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${auth.accessToken}`,
+      },
+    }).catch(() => undefined);
+  }
 
   // Close server connection
   if (serverConnection) {
@@ -361,6 +434,8 @@ export const p2pConnectionEffect = atomEffect((get, set) => {
     auth?.accessToken &&
     state !== 'connected' &&
     state !== 'relay-connecting' &&
+    state !== 'relay-connected' &&
+    state !== 'signal-exchanging' &&
     state !== 'webrtc-connecting'
   ) {
     // Trigger connection
@@ -371,4 +446,43 @@ export const p2pConnectionEffect = atomEffect((get, set) => {
   if (!auth?.accessToken && state !== 'idle' && state !== 'disconnected') {
     set(disconnectP2PAtom);
   }
+});
+
+export const hostPeersRealtimeEffect = atomEffect((get, set) => {
+  const auth = get(authAtom);
+  const serverAddress = get(serverAddressAtom);
+
+  if (!auth?.accessToken) {
+    peersEventSource?.close();
+    peersEventSource = null;
+    peersEventSourceKey = null;
+    set(hostPeersRealtimeAtom, null);
+    return;
+  }
+
+  const sourceKey = `${serverAddress}:${auth.accessToken}`;
+  if (peersEventSource && peersEventSourceKey === sourceKey) {
+    return;
+  }
+
+  peersEventSource?.close();
+  peersEventSource = null;
+  peersEventSourceKey = sourceKey;
+
+  const url = new URL('/api/p2p/events', serverAddress);
+  url.searchParams.set('access_token', auth.accessToken);
+
+  peersEventSource = new EventSource(url.toString());
+  peersEventSource.addEventListener('peers', event => {
+    const payload = JSON.parse((event as MessageEvent).data) as {
+      hosts?: HostPeer[];
+    };
+    set(hostPeersRealtimeAtom, payload.hosts ?? []);
+  });
+  peersEventSource.onerror = () => {
+    peersEventSource?.close();
+    peersEventSource = null;
+    peersEventSourceKey = null;
+    set(hostPeersRealtimeAtom, null);
+  };
 });

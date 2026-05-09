@@ -22,23 +22,16 @@ import {
   FieldLabel,
 } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import {
-  useAuth,
-  useGithubClientId,
-  useServerAddress,
-  useSessionState,
-} from '@/hooks/auth';
+import { useAuth, useServerAddress, useSessionState } from '@/hooks/auth';
 import MdiGithub from '~icons/mdi/github';
 
 const schema = z.object({
   serverAddress: z.url(),
-  githubClientId: z.string().min(1),
 });
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const [serverAddress, setServerAddress] = useServerAddress();
-  const [githubClientId, setGithubClientId] = useGithubClientId();
   const [_sessionState, setSessionState] = useSessionState();
   const [auth] = useAuth();
 
@@ -54,27 +47,24 @@ export default function LoginPage() {
     resolver: zodResolver(schema),
     defaultValues: {
       serverAddress: serverAddress,
-      githubClientId: githubClientId || '',
     },
   });
 
   const onSubmit = handleSubmit(async data => {
     setServerAddress(data.serverAddress);
-    setGithubClientId(data.githubClientId);
 
     const bytes = new Uint8Array(16);
     crypto.getRandomValues(bytes);
-    // @ts-expect-error
-    const state = bytes.toHex();
+    const state = Array.from(bytes, byte =>
+      byte.toString(16).padStart(2, '0'),
+    ).join('');
     setSessionState(state);
 
     window.location.href = withQuery(
-      'https://github.com/login/oauth/authorize',
+      resolveURL(data.serverAddress, 'oauth/github'),
       {
-        client_id: data.githubClientId,
         redirect_uri: resolveURL(window.location.origin, 'oauth/callback'),
         state,
-        scope: 'read:user',
       },
     );
   });
@@ -98,26 +88,6 @@ export default function LoginPage() {
           <CardContent className="space-y-4">
             <form onSubmit={onSubmit}>
               <FieldGroup>
-                <Controller
-                  name="githubClientId"
-                  control={control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor="form-rhf-github-client-id">
-                        Github Client ID
-                      </FieldLabel>
-                      <Input
-                        {...field}
-                        id="form-rhf-github-client-id"
-                        aria-invalid={fieldState.invalid}
-                        autoComplete="off"
-                      />
-                      {fieldState.invalid && (
-                        <FieldError errors={[fieldState.error]} />
-                      )}
-                    </Field>
-                  )}
-                />
                 <Controller
                   name="serverAddress"
                   control={control}

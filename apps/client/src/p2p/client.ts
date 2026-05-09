@@ -1,3 +1,4 @@
+import { AGENCY_ACP_PROTOCOL, type AgencyHostStatus } from '@agency/common';
 import { yamux } from '@chainsafe/libp2p-yamux';
 import { circuitRelayTransport } from '@libp2p/circuit-relay-v2';
 import { gossipsub } from '@libp2p/gossipsub';
@@ -9,6 +10,7 @@ import { webSockets } from '@libp2p/websockets';
 import { multiaddr } from '@multiformats/multiaddr';
 import type { Libp2p } from 'libp2p';
 import { createLibp2p } from 'libp2p';
+import { initializeHostAcpSession } from './acp';
 
 export interface P2PConfig {
   serverPeerId: string;
@@ -105,21 +107,40 @@ export async function createLibp2pNode(config: P2PConfig): Promise<Libp2p> {
     },
   });
 
-  const connection = await libp2p.dial(multiaddr(config.multiaddrs[0]));
-
   return libp2p;
 }
 
-// Attempt direct WebRTC connection
-export async function attemptWebRTCDirect(
+export async function dialServer(
   libp2p: Libp2p,
-  serverPeerId: string,
+  config: P2PConfig,
 ): Promise<Connection> {
-  const webrtcAddr = multiaddr(
-    `/dns4/localhost/udp/9090/webrtc-direct/p2p/${serverPeerId}`,
+  const [address] = config.relayAddresses.length
+    ? config.relayAddresses
+    : config.multiaddrs;
+
+  if (!address) {
+    throw new Error('Server does not expose any libp2p address');
+  }
+
+  return libp2p.dial(multiaddr(address));
+}
+
+export async function dialPeerAddress(
+  libp2p: Libp2p,
+  address: string,
+): Promise<Connection> {
+  return libp2p.dial(multiaddr(address));
+}
+
+export async function connectHostAgent(
+  libp2p: Libp2p,
+  address: string,
+): Promise<AgencyHostStatus> {
+  await libp2p.dial(multiaddr(address));
+  const stream = await libp2p.dialProtocol(
+    multiaddr(address),
+    AGENCY_ACP_PROTOCOL,
   );
 
-  const connection = await libp2p.dial(webrtcAddr);
-  console.log('attemptWebRTCDirect', connection);
-  return connection;
+  return initializeHostAcpSession(stream);
 }

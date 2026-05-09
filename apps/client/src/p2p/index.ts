@@ -1,6 +1,8 @@
 // Client utilities and types
 export {
+  connectHostAgent,
   type ConnectionState,
+  dialPeerAddress,
   isLibp2pSupported,
   isWebRTCSupported,
   type P2PConfig,
@@ -23,9 +25,13 @@ export {
   getLibp2pNode,
   getServerConnection,
   // Types
+  type HostPeer,
   type P2PConnectionInfo,
   type P2PConnectionState,
   type P2PStatus,
+  hostPeersAtom,
+  hostPeersRealtimeEffect,
+  hostPeersQueryAtom,
   p2pConfigAtom,
   // Effects
   p2pConnectionEffect,

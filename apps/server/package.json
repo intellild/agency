@@ -3,10 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "devDependencies": {
-    "@types/cors": "^2.8.17",
-    "@types/express": "^5.0.0"
-  },
+  "devDependencies": {},
   "dependencies": {
     "@chainsafe/libp2p-noise": "^17.0.0",
     "@chainsafe/libp2p-yamux": "^8.0.1",
@@ -15,10 +12,10 @@
     "@libp2p/interface": "^3.2.0",
     "@libp2p/websockets": "^10.1.7",
     "@multiformats/multiaddr": "^13.0.1",
-    "cors": "^2.8.5",
+    "@hono/node-server": "^1.19.12",
     "dotenv": "^17.4.0",
     "drizzle-orm": "^0.45.2",
-    "express": "^4.21.2",
+    "hono": "^4.12.10",
     "jose": "^6.2.2",
     "libp2p": "^3.1.7",
     "octokit": "^5.0.5",

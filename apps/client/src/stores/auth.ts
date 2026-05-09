@@ -68,8 +68,8 @@ function isTokenExpiringSoon(token: string): boolean {
 async function refreshAccessToken(
   serverAddress: string,
   refreshToken: string,
-): Promise<Auth> {
-  const response = await fetch(`${serverAddress}/api/auth/refresh`, {
+): Promise<Pick<Auth, 'accessToken' | 'refreshToken'>> {
+  const response = await fetch(`${serverAddress}/auth/refresh`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -102,7 +102,11 @@ export async function getAccessToken(): Promise<string> {
     const serverAddress =
       localStorage.getItem(SERVER_ADDRESS_KEY) || DEFAULT_SERVER_ADDRESS;
 
-    const newAuth = await refreshAccessToken(serverAddress, auth.refreshToken);
+    const tokens = await refreshAccessToken(serverAddress, auth.refreshToken);
+    const newAuth = {
+      ...auth,
+      ...tokens,
+    };
 
     // 使用 jotai store 更新 auth
     store.set(authAtom, newAuth);

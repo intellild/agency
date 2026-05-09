@@ -61,6 +61,14 @@
     }
   },
   "dependencies": {
+    "@agentclientprotocol/sdk": "^0.18.0",
+    "@chainsafe/libp2p-noise": "^17.0.0",
+    "@chainsafe/libp2p-yamux": "^8.0.1",
+    "@libp2p/circuit-relay-v2": "^4.1.7",
+    "@libp2p/identify": "^4.0.14",
+    "@libp2p/websockets": "^10.1.7",
+    "@multiformats/multiaddr": "^13.0.1",
+    "libp2p": "^3.1.7",
     "peerjs": "^1.5.5",
     "webrtc-polyfill": "^1.2.0"
   }
