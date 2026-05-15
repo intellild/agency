@@ -5,11 +5,7 @@ import { atomWithQuery } from 'jotai-tanstack-query';
 import type { Libp2p } from 'libp2p';
 import { authAtom, serverAddressAtom } from '@/stores/auth';
 import type { ConnectionState, P2PConfig } from './client';
-import {
-  createLibp2pNode,
-  dialServer,
-  isLibp2pSupported,
-} from './client';
+import { createLibp2pNode, dialServer, isLibp2pSupported } from './client';
 
 // ============================================
 // Module-Level Instance Storage (non-serializable objects)
@@ -347,7 +343,11 @@ export const connectP2PAtom = atom(null, async (get, set): Promise<boolean> => {
       }).catch(() => undefined);
     }
     if (failedLibp2p) {
-      await failedLibp2p.stop().catch(() => undefined);
+      try {
+        await failedLibp2p.stop();
+      } catch {
+        // ignore cleanup failures
+      }
       setLibp2pNode(null);
       setServerConnection(null);
     }
